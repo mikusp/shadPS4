@@ -307,9 +307,9 @@ private:
     template <typename T = IR::U32>
     [[nodiscard]] T GetSrc(const InstOperand& operand);
     template <typename T = IR::U64>
-    [[nodiscard]] T GetSrc64(const InstOperand& operand);
+    [[nodiscard]] T GetSrc64(const InstOperand& operand, bool keep_64bit = false);
     void SetDst(const InstOperand& operand, const IR::U32F32& value);
-    void SetDst64(const InstOperand& operand, const IR::U64F64& value_raw);
+    void SetDst64(const InstOperand& operand, const IR::U64F64& value_raw, bool keep_64bit = false);
 
     // Vector ALU Helpers
     IR::U32 GetCarryIn(const GcnInst& inst);

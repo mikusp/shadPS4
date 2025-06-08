@@ -355,8 +355,8 @@ void Translator::S_AND_B32(NegateMode negate, const GcnInst& inst) {
 }
 
 void Translator::S_AND_B64(NegateMode negate, const GcnInst& inst) {
-    auto src0{GetSrc64(inst.src[0])};
-    auto src1{GetSrc64(inst.src[1])};
+    auto src0{GetSrc64(inst.src[0], true)};
+    auto src1{GetSrc64(inst.src[1], true)};
     if (negate == NegateMode::Src1) {
         src1 = ir.BitwiseNot(src1);
     }
@@ -364,7 +364,7 @@ void Translator::S_AND_B64(NegateMode negate, const GcnInst& inst) {
     if (negate == NegateMode::Result) {
         result = ir.BitwiseNot(result);
     }
-    SetDst64(inst.dst[0], result);
+    SetDst64(inst.dst[0], result, true);
     ir.SetScc(ir.INotEqual(result, ir.Imm64(u64(0))));
     // const auto get_src = [&](const InstOperand& operand) {
     //     switch (operand.field) {
@@ -422,8 +422,8 @@ void Translator::S_OR_B32(const GcnInst& inst) {
 }
 
 void Translator::S_OR_B64(NegateMode negate, bool is_xor, const GcnInst& inst) {
-    const auto result{ir.BitwiseOr(GetSrc64(inst.src[0]), GetSrc64(inst.src[1]))};
-    SetDst64(inst.dst[0], result);
+    const auto result{ir.BitwiseOr(GetSrc64(inst.src[0], true), GetSrc64(inst.src[1], true))};
+    SetDst64(inst.dst[0], result, true);
     ir.SetScc(ir.INotEqual(result, ir.Imm64(u64(0))));
     // const auto get_src = [&](const InstOperand& operand) {
     //     switch (operand.field) {
@@ -601,7 +601,7 @@ void Translator::S_MOV(const GcnInst& inst) {
 }
 
 void Translator::S_MOV_B64(const GcnInst& inst) {
-    SetDst64(inst.dst[0], GetSrc64(inst.src[0]));
+    SetDst64(inst.dst[0], GetSrc64(inst.src[0], true), true);
 
     // const IR::U1 src = [&] {
     //     switch (inst.src[0].field) {
@@ -633,8 +633,8 @@ void Translator::S_MOV_B64(const GcnInst& inst) {
 }
 
 void Translator::S_NOT_B64(const GcnInst& inst) {
-    const auto result = ir.BitwiseNot(GetSrc64(inst.src[0]));
-    SetDst64(inst.dst[0], result);
+    const auto result = ir.BitwiseNot(GetSrc64(inst.src[0], true));
+    SetDst64(inst.dst[0], result, true);
     ir.SetScc(ir.INotEqual(ir.Imm64(u64(0)), result));
     // const auto get_src = [&](const InstOperand& operand) {
     //     switch (operand.field) {

@@ -219,6 +219,10 @@ U1 IREmitter::GetVcc() {
     return Inst<U1>(Opcode::GetVcc);
 }
 
+U64 IREmitter::GetVcc64() {
+    return Inst<U64>(Opcode::GetVcc64);
+}
+
 U32 IREmitter::GetVccLo() {
     return Inst<U32>(Opcode::GetVccLo);
 }
@@ -257,6 +261,10 @@ void IREmitter::SetVccLo(const U32& value) {
 
 void IREmitter::SetVccHi(const U32& value) {
     Inst(Opcode::SetVccHi, value);
+}
+
+void IREmitter::SetVcc64(const U64& value) {
+    Inst(Opcode::SetVcc64, value);
 }
 
 void IREmitter::SetM0(const U32& value) {
@@ -1713,8 +1721,18 @@ U1 IREmitter::ILessThanEqual(const U32& lhs, const U32& rhs, bool is_signed) {
     return Inst<U1>(is_signed ? Opcode::SLessThanEqual : Opcode::ULessThanEqual, lhs, rhs);
 }
 
-U1 IREmitter::IGreaterThan(const U32& lhs, const U32& rhs, bool is_signed) {
-    return Inst<U1>(is_signed ? Opcode::SGreaterThan : Opcode::UGreaterThan, lhs, rhs);
+U1 IREmitter::IGreaterThan(const U32U64& lhs, const U32U64& rhs, bool is_signed) {
+    if (lhs.Type() != rhs.Type()) {
+        UNREACHABLE_MSG("Mismatching types {} and {}", lhs.Type(), rhs.Type());
+    }
+    switch (lhs.Type()) {
+    case Type::U32:
+        return Inst<U1>(is_signed ? Opcode::SGreaterThan32 : Opcode::UGreaterThan32, lhs, rhs);
+    case Type::U64:
+        return Inst<U1>(is_signed ? Opcode::SGreaterThan64 : Opcode::UGreaterThan64, lhs, rhs);
+    default:
+        ThrowInvalidType(lhs.Type());
+    }
 }
 
 U1 IREmitter::INotEqual(const U32U64& lhs, const U32U64& rhs) {

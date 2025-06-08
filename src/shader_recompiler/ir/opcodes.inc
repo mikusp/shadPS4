@@ -76,6 +76,7 @@ OPCODE(GetScc,                                              U1,             Void
 OPCODE(GetExec,                                             U1,             Void,                                                                           )
 OPCODE(GetExec64,                                           U64,            Void,                                                                           )
 OPCODE(GetVcc,                                              U1,             Void,                                                                           )
+OPCODE(GetVcc64,                                            U64,            Void,                                                                           )
 OPCODE(GetVccLo,                                            U32,            Void,                                                                           )
 OPCODE(GetVccHi,                                            U32,            Void,                                                                           )
 OPCODE(GetM0,                                               U32,            Void,                                                                           )
@@ -86,6 +87,7 @@ OPCODE(SetVcc,                                              Void,           U1, 
 OPCODE(SetSccLo,                                            Void,           U32,                                                                            )
 OPCODE(SetVccLo,                                            Void,           U32,                                                                            )
 OPCODE(SetVccHi,                                            Void,           U32,                                                                            )
+OPCODE(SetVcc64,                                            Void,           U64,                                                                            )
 OPCODE(SetM0,                                               Void,           U32,                                                                            )
 
 // Undefined
@@ -383,8 +385,10 @@ OPCODE(IEqual32,                                            U1,             U32,
 OPCODE(IEqual64,                                            U1,             U64,            U64,                                                            )
 OPCODE(SLessThanEqual,                                      U1,             U32,            U32,                                                            )
 OPCODE(ULessThanEqual,                                      U1,             U32,            U32,                                                            )
-OPCODE(SGreaterThan,                                        U1,             U32,            U32,                                                            )
-OPCODE(UGreaterThan,                                        U1,             U32,            U32,                                                            )
+OPCODE(SGreaterThan32,                                      U1,             U64,            U64,                                                            )
+OPCODE(SGreaterThan64,                                      U1,             U64,            U64,                                                            )
+OPCODE(UGreaterThan32,                                      U1,             U32,            U32,                                                            )
+OPCODE(UGreaterThan64,                                      U1,             U64,            U64,                                                            )
 OPCODE(INotEqual32,                                         U1,             U32,            U32,                                                            )
 OPCODE(INotEqual64,                                         U1,             U64,            U64,                                                            )
 OPCODE(SGreaterThanEqual,                                   U1,             U32,            U32,                                                            )

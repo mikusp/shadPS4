@@ -71,6 +71,7 @@ public:
     [[nodiscard]] U1 GetVcc();
     [[nodiscard]] U32 GetVccLo();
     [[nodiscard]] U32 GetVccHi();
+    [[nodiscard]] U64 GetVcc64();
     [[nodiscard]] U32 GetM0();
     void SetScc(const U1& value);
     void SetExec(const U1& value);
@@ -79,6 +80,7 @@ public:
     void SetSccLo(const U32& value);
     void SetVccLo(const U32& value);
     void SetVccHi(const U32& value);
+    void SetVcc64(const U64& value);
     void SetM0(const U32& value);
 
     [[nodiscard]] U1 Condition(IR::Condition cond);
@@ -298,7 +300,7 @@ public:
     [[nodiscard]] U1 ILessThan(const U32U64& lhs, const U32U64& rhs, bool is_signed);
     [[nodiscard]] U1 IEqual(const U32U64& lhs, const U32U64& rhs);
     [[nodiscard]] U1 ILessThanEqual(const U32& lhs, const U32& rhs, bool is_signed);
-    [[nodiscard]] U1 IGreaterThan(const U32& lhs, const U32& rhs, bool is_signed);
+    [[nodiscard]] U1 IGreaterThan(const U32U64& lhs, const U32U64& rhs, bool is_signed);
     [[nodiscard]] U1 INotEqual(const U32U64& lhs, const U32U64& rhs);
     [[nodiscard]] U1 IGreaterThanEqual(const U32& lhs, const U32& rhs, bool is_signed);
 

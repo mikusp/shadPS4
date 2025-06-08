@@ -178,9 +178,10 @@ static IR::Inst* GetSrc(IR::Inst& inst) {
     
     UNREACHABLE_MSG("unhandled argless opcode: {}", inst.GetOpcode());
 }
+static bool Up1Bit(IR::Inst& inst, u32 operand);
 
 static void Replace1Bit(IR::Inst& inst) {
-    LOG_DEBUG(Render_Recompiler, "top down {}", inst.GetOpcode());
+    // LOG_DEBUG(Render_Recompiler, "top down {}", inst.GetOpcode());
     switch (inst.GetOpcode()) {
     case IR::Opcode::PackUint2x32: {
         Replace1Bit(*inst.Arg(0).InstRecursive());
@@ -204,17 +205,26 @@ static void Replace1Bit(IR::Inst& inst) {
     }
     case IR::Opcode::GetScalarRegister: {
         inst.ReplaceOpcode(IR::Opcode::GetThreadBitScalarReg);
+        for (auto& use : inst.Uses()) {
+            Up1Bit(*use.user, use.operand);
+        }
         break;
     }
     case IR::Opcode::BitwiseAnd64: {
         Replace1Bit(*inst.Arg(0).InstRecursive());
         Replace1Bit(*inst.Arg(1).InstRecursive());
         inst.ReplaceOpcode(IR::Opcode::LogicalAnd);
+        for (auto& use : inst.Uses()) {
+            Up1Bit(*use.user, use.operand);
+        }
         break;
     }
     case IR::Opcode::BitwiseNot64: {
         Replace1Bit(*inst.Arg(0).InstRecursive());
         inst.ReplaceOpcode(IR::Opcode::LogicalNot);
+        for (auto& use : inst.Uses()) {
+            Up1Bit(*use.user, use.operand);
+        }
         break;
     }
     case IR::Opcode::GetVccLo: {
@@ -223,6 +233,25 @@ static void Replace1Bit(IR::Inst& inst) {
     }
     case IR::Opcode::GetExec64: {
         inst.ReplaceOpcode(IR::Opcode::GetExec);
+        for (auto& use : inst.Uses()) {
+            Up1Bit(*use.user, use.operand);
+        }
+        break;
+    }
+    case IR::Opcode::GetVcc64: {
+        inst.ReplaceOpcode(IR::Opcode::GetVcc);
+        for (auto& use : inst.Uses()) {
+            Up1Bit(*use.user, use.operand);
+        }
+        break;
+    }
+    case IR::Opcode::BitwiseOr64: {
+        Replace1Bit(*inst.Arg(0).InstRecursive());
+        Replace1Bit(*inst.Arg(1).InstRecursive());
+        inst.ReplaceOpcode(IR::Opcode::LogicalOr);
+        for (auto& use : inst.Uses()) {
+            Up1Bit(*use.user, use.operand);
+        }
         break;
     }
     default:
@@ -235,26 +264,47 @@ static void Replace1Bit(IR::Inst& inst) {
 }
 
 static bool Up1Bit(IR::Inst& inst, u32 operand) {
-    LOG_DEBUG(Render_Recompiler, "top up {}, op {}", inst.GetOpcode(), operand);
+    // LOG_DEBUG(Render_Recompiler, "top up {}, op {}", inst.GetOpcode(), operand);
 
     switch (inst.GetOpcode()) {
     case IR::Opcode::UnpackUint2x32: {
-        LOG_DEBUG(Render_Recompiler, "up {}", inst.GetOpcode());
+        // LOG_DEBUG(Render_Recompiler, "up {}", inst.GetOpcode());
         for (auto& use : inst.Uses()) {
             Up1Bit(*use.user, use.operand);
         }
-        inst.ReplaceUsesWith(inst.Arg(0));
+        inst.ReplaceUsesWithAndRemove(inst.Arg(0));
         break;
     }
     case IR::Opcode::CompositeExtractU32x2: {
-        LOG_DEBUG(Render_Recompiler, "up {}", inst.GetOpcode());
+        // LOG_DEBUG(Render_Recompiler, "up {}", inst.GetOpcode());
         for (auto& use : inst.Uses()) {
             Up1Bit(*use.user, use.operand);
         }
-        inst.ReplaceUsesWith(inst.Arg(0));
+        inst.ReplaceUsesWithAndRemove(inst.Arg(0));
+        break;
+    }
+    case IR::Opcode::PackUint2x32: {
+        // LOG_DEBUG(Render_Recompiler, "up {}", inst.GetOpcode());
+        for (auto& use : inst.Uses()) {
+            Up1Bit(*use.user, use.operand);
+        }
+        inst.ReplaceUsesWithAndRemove(inst.Arg(0));
+        break;
+    }
+    case IR::Opcode::CompositeConstructU32x2: {
+        // LOG_DEBUG(Render_Recompiler, "up {}", inst.GetOpcode());
+        for (auto& use : inst.Uses()) {
+            Up1Bit(*use.user, use.operand);
+        }
+        inst.ReplaceUsesWithAndRemove(inst.Arg(0));
         break;
     }
     case IR::Opcode::BitwiseAnd64: {
+        if (inst.Arg(operand ? 0 : 1).IsImmediate()) {
+            inst.SetArg(operand ? 0 : 1, IR::Value((inst.Arg(operand ? 0 : 1).U64() & 1) == 1));
+        } else {
+            Replace1Bit(*inst.Arg(operand ? 0 : 1).InstRecursive());
+        }
         for (auto& use : inst.Uses()) {
             Up1Bit(*use.user, use.operand);
         }
@@ -262,16 +312,35 @@ static bool Up1Bit(IR::Inst& inst, u32 operand) {
         break;
     }
     case IR::Opcode::BitwiseOr64: {
+        if (inst.Arg(operand ? 0 : 1).IsImmediate()) {
+            inst.SetArg(operand ? 0 : 1, IR::Value((inst.Arg(operand ? 0 : 1).U64() & 1) == 1));
+        } else {
+            Replace1Bit(*inst.Arg(operand ? 0 : 1).InstRecursive());
+        }
         for (auto& use : inst.Uses()) {
             Up1Bit(*use.user, use.operand);
         }
         inst.ReplaceOpcode(IR::Opcode::LogicalOr);
         break;
     }
+    case IR::Opcode::BitwiseNot64: {
+        // if (inst.Arg(operand ? 0 : 1).IsImmediate()) {
+        //     inst.SetArg(operand ? 0 : 1, IR::Value((inst.Arg(operand ? 0 : 1).U64() & 1) == 1));
+        // } else {
+        //     Replace1Bit(*inst.Arg(operand ? 0 : 1).InstRecursive());
+        // }
+        for (auto& use : inst.Uses()) {
+            Up1Bit(*use.user, use.operand);
+        }
+        inst.ReplaceOpcode(IR::Opcode::LogicalNot);
+        break;
+    }
     case IR::Opcode::INotEqual64: {
-        LOG_DEBUG(Render_Recompiler, "up {} op {}", inst.GetOpcode(), operand);
+        // LOG_DEBUG(Render_Recompiler, "up {} op {}", inst.GetOpcode(), operand);
         if (inst.Arg(operand ? 0 : 1).IsImmediate()) {
             inst.SetArg(operand ? 0 : 1, IR::Value((inst.Arg(operand ? 0 : 1).U64() & 1) == 1));
+        } else {
+            Replace1Bit(*inst.Arg(operand ? 0 : 1).InstRecursive());
         }
         // Replace1Bit(*inst.Arg(operand ? 0 : 1).InstRecursive());
         // for (auto& use : inst.Uses()) {
@@ -311,6 +380,19 @@ static void Lower(IR::Block& block, IR::Inst& inst) {
         inst.ReplaceOpcode(IR::Opcode::SetExec);
         break;
     }
+    case IR::Opcode::SetVcc64: {
+        const auto arg = inst.Arg(0);
+        if (arg.IsImmediate()) {
+            inst.SetArg(0, IR::Value((arg.U64() & 1) == 1));
+        } else {
+            Replace1Bit(*inst.Arg(0).InstRecursive());
+            for (auto& use : inst.Uses()) {
+                Up1Bit(*use.user, use.operand);
+            }
+        }
+        inst.ReplaceOpcode(IR::Opcode::SetVcc);
+        break;
+    }
     default:
         break;
     }
@@ -325,6 +407,13 @@ static void Upper(IR::Block& block, IR::Inst& inst) {
         inst.ReplaceOpcode(IR::Opcode::GetExec);
         break;
     }
+    case IR::Opcode::GetVcc64: {
+        for (auto& use : inst.Uses()) {
+            Up1Bit(*use.user, use.operand);
+        }
+        inst.ReplaceOpcode(IR::Opcode::GetVcc);
+        break;
+    }
     default:
         break;
     }
@@ -332,14 +421,22 @@ static void Upper(IR::Block& block, IR::Inst& inst) {
 
 void LowerExec64(IR::Program& program) {
     for (IR::Block* const block : program.blocks) {
+        if (program.info.pgm_hash == 0x417fd8da)
+            LOG_INFO(Render_Recompiler, "before lower {}\n", DumpBlock(*block));
         for (IR::Inst& inst : block->Instructions()) {
             Lower(*block, inst);
         }
+        if (program.info.pgm_hash == 0x417fd8da)
+            LOG_INFO(Render_Recompiler, "after lower {}\n", DumpBlock(*block));
     }
     for (IR::Block* const block : program.blocks) {
+        if (program.info.pgm_hash == 0x417fd8da)
+            LOG_INFO(Render_Recompiler, "before upper {}\n", DumpBlock(*block));
         for (IR::Inst& inst : block->Instructions()) {
             Upper(*block, inst);
         }
+        if (program.info.pgm_hash == 0x417fd8da)
+            LOG_INFO(Render_Recompiler, "before upper {}\n", DumpBlock(*block));
     }
 }
 

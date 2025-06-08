@@ -383,11 +383,19 @@ Id EmitULessThanEqual(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpULessThanEqual(ctx.U1[1], lhs, rhs);
 }
 
-Id EmitSGreaterThan(EmitContext& ctx, Id lhs, Id rhs) {
+Id EmitSGreaterThan32(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpSGreaterThan(ctx.U1[1], lhs, rhs);
 }
 
-Id EmitUGreaterThan(EmitContext& ctx, Id lhs, Id rhs) {
+Id EmitSGreaterThan64(EmitContext& ctx, Id lhs, Id rhs) {
+    return ctx.OpSGreaterThan(ctx.U1[1], lhs, rhs);
+}
+
+Id EmitUGreaterThan32(EmitContext& ctx, Id lhs, Id rhs) {
+    return ctx.OpUGreaterThan(ctx.U1[1], lhs, rhs);
+}
+
+Id EmitUGreaterThan64(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpUGreaterThan(ctx.U1[1], lhs, rhs);
 }
 

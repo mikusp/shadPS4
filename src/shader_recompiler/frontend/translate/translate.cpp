@@ -321,7 +321,7 @@ template IR::U32 Translator::GetSrc<IR::U32>(const InstOperand&);
 template IR::F32 Translator::GetSrc<IR::F32>(const InstOperand&);
 
 template <typename T>
-T Translator::GetSrc64(const InstOperand& operand) {
+T Translator::GetSrc64(const InstOperand& operand, bool keep_64bit) {
     constexpr bool is_float = std::is_same_v<T, IR::F64>;
 
     const auto get_imm = [&](auto value) -> T {
@@ -394,14 +394,23 @@ T Translator::GetSrc64(const InstOperand& operand) {
         if constexpr (is_float) {
             value = ir.PackDouble2x32(ir.CompositeConstruct(ir.GetVccLo(), ir.GetVccHi()));
         } else {
-            value = ir.PackUint2x32(ir.CompositeConstruct(ir.GetVccLo(), ir.GetVccHi()));
+            if (keep_64bit) {
+                value = ir.GetVcc64();
+            } else {
+                value = ir.PackUint2x32(ir.CompositeConstruct(ir.GetVccLo(), ir.GetVccHi()));
+            }
         }
         break;
     case OperandField::ExecLo:
         if constexpr (is_float) {
             UNREACHABLE();
         } else {
-            value = ir.GetExec64();
+            if (keep_64bit) {
+                value = ir.GetExec64();
+            } else {
+                UNREACHABLE();
+                // value = ir.PackUint2x32(ir.CompositeConstruct(ir.GetExecLo(), ir.GetExecHi()));
+            }
         }
         break;
     case OperandField::ExecHi:
@@ -421,8 +430,8 @@ T Translator::GetSrc64(const InstOperand& operand) {
     return value;
 }
 
-template IR::U64 Translator::GetSrc64<IR::U64>(const InstOperand&);
-template IR::F64 Translator::GetSrc64<IR::F64>(const InstOperand&);
+template IR::U64 Translator::GetSrc64<IR::U64>(const InstOperand&, bool);
+template IR::F64 Translator::GetSrc64<IR::F64>(const InstOperand&, bool);
 
 void Translator::SetDst(const InstOperand& operand, const IR::U32F32& value) {
     IR::U32F32 result = value;
@@ -451,7 +460,7 @@ void Translator::SetDst(const InstOperand& operand, const IR::U32F32& value) {
     }
 }
 
-void Translator::SetDst64(const InstOperand& operand, const IR::U64F64& value_raw) {
+void Translator::SetDst64(const InstOperand& operand, const IR::U64F64& value_raw, bool keep_64bit) {
     IR::U64F64 value_untyped = value_raw;
 
     const bool is_float = value_raw.Type() == IR::Type::F64 || value_raw.Type() == IR::Type::F32;
@@ -477,6 +486,9 @@ void Translator::SetDst64(const InstOperand& operand, const IR::U64F64& value_ra
         ir.SetVectorReg(IR::VectorReg(operand.code + 1), hi);
         return ir.SetVectorReg(IR::VectorReg(operand.code), lo);
     case OperandField::VccLo:
+        if (keep_64bit) {
+            return ir.SetVcc64(value_untyped);
+        }
         ir.SetVccLo(lo);
         return ir.SetVccHi(hi);
     case OperandField::VccHi:
@@ -484,7 +496,11 @@ void Translator::SetDst64(const InstOperand& operand, const IR::U64F64& value_ra
     case OperandField::M0:
         break;
     case OperandField::ExecLo:
-        return ir.SetExec64(value_raw);
+        if (keep_64bit) {
+            return ir.SetExec64(value_raw);
+        } else {
+            UNREACHABLE();
+        }
     case OperandField::ExecHi:
         UNREACHABLE();
     default:
