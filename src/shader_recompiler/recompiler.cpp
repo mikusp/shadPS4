@@ -63,6 +63,7 @@ IR::Program TranslateProgram(std::span<const u32> code, Pools& pools, Info& info
     if (!profile.support_float64) {
         Shader::Optimization::LowerFp64ToFp32(program);
     }
+    Shader::Optimization::LowerExec64(program);
     Shader::Optimization::SsaRewritePass(program.post_order_blocks);
     Shader::Optimization::ConstantPropagationPass(program.post_order_blocks);
     Shader::Optimization::IdentityRemovalPass(program.blocks);

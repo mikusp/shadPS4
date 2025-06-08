@@ -211,6 +211,10 @@ U1 IREmitter::GetExec() {
     return Inst<U1>(Opcode::GetExec);
 }
 
+U64 IREmitter::GetExec64() {
+    return Inst<U64>(Opcode::GetExec64);
+}
+
 U1 IREmitter::GetVcc() {
     return Inst<U1>(Opcode::GetVcc);
 }
@@ -233,6 +237,10 @@ void IREmitter::SetScc(const U1& value) {
 
 void IREmitter::SetExec(const U1& value) {
     Inst(Opcode::SetExec, value);
+}
+
+void IREmitter::SetExec64(const U64& value) {
+    Inst(Opcode::SetExec64, value);
 }
 
 void IREmitter::SetVcc(const U1& value) {
@@ -1568,8 +1576,15 @@ U32 IREmitter::BitCount(const U32U64& value) {
     }
 }
 
-U32 IREmitter::BitwiseNot(const U32& value) {
-    return Inst<U32>(Opcode::BitwiseNot32, value);
+U32U64 IREmitter::BitwiseNot(const U32U64& value) {
+    switch (value.Type()) {
+    case Type::U32:
+        return Inst<U32>(Opcode::BitwiseNot32, value);
+    case Type::U64:
+        return Inst<U64>(Opcode::BitwiseNot64, value);
+    default:
+        ThrowInvalidType(value.Type());
+    }
 }
 
 U32 IREmitter::FindSMsb(const U32& value) {

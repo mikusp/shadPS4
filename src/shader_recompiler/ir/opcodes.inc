@@ -74,12 +74,14 @@ OPCODE(ReadTcsGenericOuputAttribute,                        F32,            U32,
 // Flags
 OPCODE(GetScc,                                              U1,             Void,                                                                           )
 OPCODE(GetExec,                                             U1,             Void,                                                                           )
+OPCODE(GetExec64,                                           U64,            Void,                                                                           )
 OPCODE(GetVcc,                                              U1,             Void,                                                                           )
 OPCODE(GetVccLo,                                            U32,            Void,                                                                           )
 OPCODE(GetVccHi,                                            U32,            Void,                                                                           )
 OPCODE(GetM0,                                               U32,            Void,                                                                           )
 OPCODE(SetScc,                                              Void,           U1,                                                                             )
 OPCODE(SetExec,                                             Void,           U1,                                                                             )
+OPCODE(SetExec64,                                           Void,           U64,                                                                            )
 OPCODE(SetVcc,                                              Void,           U1,                                                                             )
 OPCODE(SetSccLo,                                            Void,           U32,                                                                            )
 OPCODE(SetVccLo,                                            Void,           U32,                                                                            )
@@ -354,6 +356,7 @@ OPCODE(BitReverse32,                                        U32,            U32,
 OPCODE(BitCount32,                                          U32,            U32,                                                                            )
 OPCODE(BitCount64,                                          U32,            U64,                                                                            )
 OPCODE(BitwiseNot32,                                        U32,            U32,                                                                            )
+OPCODE(BitwiseNot64,                                        U64,            U64,                                                                            )
 
 OPCODE(FindSMsb32,                                          U32,            U32,                                                                            )
 OPCODE(FindUMsb32,                                          U32,            U32,                                                                            )

@@ -468,6 +468,10 @@ void EmitGetExec(EmitContext& ctx) {
     UNREACHABLE_MSG("Unreachable instruction");
 }
 
+void EmitGetExec64(EmitContext& ctx) {
+    UNREACHABLE_MSG("Unreachable instruction");
+}
+
 void EmitGetVcc(EmitContext& ctx) {
     UNREACHABLE_MSG("Unreachable instruction");
 }
@@ -493,6 +497,10 @@ void EmitSetScc(EmitContext& ctx) {
 }
 
 void EmitSetExec(EmitContext& ctx) {
+    UNREACHABLE_MSG("Unreachable instruction");
+}
+
+void EmitSetExec64(EmitContext& ctx) {
     UNREACHABLE_MSG("Unreachable instruction");
 }
 

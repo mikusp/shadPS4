@@ -67,12 +67,14 @@ public:
 
     [[nodiscard]] U1 GetScc();
     [[nodiscard]] U1 GetExec();
+    [[nodiscard]] U64 GetExec64();
     [[nodiscard]] U1 GetVcc();
     [[nodiscard]] U32 GetVccLo();
     [[nodiscard]] U32 GetVccHi();
     [[nodiscard]] U32 GetM0();
     void SetScc(const U1& value);
     void SetExec(const U1& value);
+    void SetExec64(const U64& value);
     void SetVcc(const U1& value);
     void SetSccLo(const U32& value);
     void SetVccLo(const U32& value);
@@ -270,7 +272,7 @@ public:
                                       bool is_signed = false);
     [[nodiscard]] U32 BitReverse(const U32& value);
     [[nodiscard]] U32 BitCount(const U32U64& value);
-    [[nodiscard]] U32 BitwiseNot(const U32& value);
+    [[nodiscard]] U32U64 BitwiseNot(const U32U64& value);
 
     [[nodiscard]] U32 FindSMsb(const U32& value);
     [[nodiscard]] U32 FindUMsb(const U32U64& value);

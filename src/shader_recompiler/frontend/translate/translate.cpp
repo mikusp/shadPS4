@@ -397,6 +397,14 @@ T Translator::GetSrc64(const InstOperand& operand) {
             value = ir.PackUint2x32(ir.CompositeConstruct(ir.GetVccLo(), ir.GetVccHi()));
         }
         break;
+    case OperandField::ExecLo:
+        if constexpr (is_float) {
+            UNREACHABLE();
+        } else {
+            value = ir.GetExec64();
+        }
+        break;
+    case OperandField::ExecHi:
     case OperandField::VccHi:
     default:
         UNREACHABLE();
@@ -475,6 +483,10 @@ void Translator::SetDst64(const InstOperand& operand, const IR::U64F64& value_ra
         UNREACHABLE();
     case OperandField::M0:
         break;
+    case OperandField::ExecLo:
+        return ir.SetExec64(value_raw);
+    case OperandField::ExecHi:
+        UNREACHABLE();
     default:
         UNREACHABLE();
     }
