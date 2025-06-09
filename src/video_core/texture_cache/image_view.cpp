@@ -92,7 +92,7 @@ ImageView::ImageView(const Vulkan::Instance& instance, const ImageViewInfo& info
         aspect = vk::ImageAspectFlagBits::eStencil;
     }
 
-    const vk::ImageViewCreateInfo image_view_ci = {
+    vk::ImageViewCreateInfo image_view_ci = {
         .pNext = &usage_ci,
         .image = image.image,
         .viewType = info.type,
@@ -106,6 +106,7 @@ ImageView::ImageView(const Vulkan::Instance& instance, const ImageViewInfo& info
             .layerCount = info.range.extent.layers,
         },
     };
+
     auto [view_result, view] = instance.GetDevice().createImageViewUnique(image_view_ci);
     ASSERT_MSG(view_result == vk::Result::eSuccess, "Failed to create image view: {}",
                vk::to_string(view_result));
