@@ -18,6 +18,7 @@
 #include "core/linker.h"
 #include "core/memory.h"
 #include "core/tls.h"
+#include "core/game_hook.h"
 
 namespace Core {
 
@@ -159,6 +160,7 @@ s32 Linker::LoadModule(const std::filesystem::path& elf_name, bool is_dynamic) {
     }
 
     num_static_modules += !is_dynamic;
+    GameHook::OnModuleLoaded(module->name, module->base_virtual_addr);
     m_modules.emplace_back(std::move(module));
 
     Core::Devtools::Widget::ModuleList::AddModule(elf_name.filename().string(), elf_name);

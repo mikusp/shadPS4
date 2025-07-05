@@ -788,6 +788,8 @@ set(CORE src/core/aerolib/stubs.cpp
          ${DEV_TOOLS}
          src/core/debug_state.cpp
          src/core/debug_state.h
+         src/core/game_hook.cpp
+         src/core/game_hook.h
          src/core/linker.cpp
          src/core/linker.h
          src/core/memory.cpp
@@ -1127,7 +1129,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
         target_compile_definitions(shadps4 PRIVATE ENABLE_USERFAULTFD)
     endif()
 
-    target_link_libraries(shadps4 PRIVATE uuid)
+    target_link_libraries(shadps4 PRIVATE uuid dl)
 endif()
 
 if (APPLE)

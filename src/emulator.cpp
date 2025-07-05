@@ -30,6 +30,7 @@
 #include "core/file_format/psf.h"
 #include "core/file_format/trp.h"
 #include "core/file_sys/fs.h"
+#include "core/game_hook.h"
 #include "core/libraries/disc_map/disc_map.h"
 #include "core/libraries/libc_internal/libc_internal.h"
 #include "core/libraries/libs.h"
@@ -257,6 +258,7 @@ void Emulator::Run(std::filesystem::path file, const std::vector<std::string> ar
 
     // Initialize kernel and library facilities.
     Libraries::InitHLELibs(&linker->GetHLESymbols());
+    GameHook::Init(game_info.game_serial, game_info.app_ver);
 
     // Load the module with the linker
     const auto eboot_path = mnt->GetHostPath("/app0/" + eboot_name);
