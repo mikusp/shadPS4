@@ -606,6 +606,7 @@ bool getSeparateLogFilesEnabled() {
 }
 
 bool getPSNSignedIn() {
+    // return true;
     return isPSNSignedIn;
 }
 

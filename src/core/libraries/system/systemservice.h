@@ -21,6 +21,10 @@ enum class OrbisSystemServiceParamId {
     TimeZone = 4,
     Summertime = 5,
     SystemName = 6,
+    Unk1 = 100,
+    Unk2 = 200,
+    Unk3 = 202,
+    Unk4 = 203,
     GameParentalLevel = 7,
     EnterButtonAssign = 1000,
 };

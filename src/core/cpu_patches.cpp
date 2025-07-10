@@ -760,6 +760,7 @@ static bool PatchesIllegalInstructionHandler(void* context) {
             LOG_ERROR(Core, "Failed to patch address {:x} -- mnemonic: {}", (u64)code_address,
                       ZYAN_SUCCESS(status) ? ZydisMnemonicGetString(instruction.mnemonic)
                                            : "Failed to decode");
+            std::quick_exit(1);
         }
     }
 

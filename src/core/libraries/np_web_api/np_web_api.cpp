@@ -123,8 +123,15 @@ s32 PS4_SYSV_ABI sceNpWebApiCreateMultipartRequest() {
     return ORBIS_OK;
 }
 
-s32 PS4_SYSV_ABI sceNpWebApiCreateRequest() {
-    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
+struct OrbisWebApiContentParameter {
+    u64 contentLength;
+    char* contentType;
+    u8 pad[16];
+};
+
+s32 PS4_SYSV_ABI sceNpWebApiCreateRequest(int userCtxId, const char* api, const char* path, int method, const OrbisWebApiContentParameter* param, u64* requestid) {
+    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called, userCtxId = {}, api = {}, path = {}, method = {}, contentLength = {}, contentType = {}",
+        userCtxId, api ? api : "", path ? path : "", method, param ? param->contentLength : 0, param ? (param->contentType ? param->contentType : "") : "");
     return ORBIS_OK;
 }
 

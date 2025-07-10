@@ -692,7 +692,6 @@ void Translator::S_FF1_I32_B64(const GcnInst& inst) {
         }
     }();
     const IR::U32 result{ir.BallotFindLsb(ir.Ballot(src))};
-
     SetDst(inst.dst[0], result);
 }
 

@@ -8,8 +8,21 @@
 
 namespace Libraries::NpParty {
 
+OrbisNpPartyEventHandlers partyHandlers = {};
+void* partyUserdata = nullptr;
+
 s32 PS4_SYSV_ABI sceNpPartyCheckCallback() {
-    LOG_ERROR(Lib_NpParty, "(STUBBED) called");
+    LOG_ERROR(Lib_NpParty, "(DUMMY) called");
+    u32 ev = 0;
+    if (partyHandlers.gameSessionEventHandler) {
+        LOG_INFO(Lib_NpParty, "game session");
+        partyHandlers.gameSessionEventHandler(1, &ev, partyUserdata);
+    }
+    if (partyHandlers.binaryMessageEventHandler) {
+        LOG_INFO(Lib_NpParty, "binary message");
+        partyHandlers.binaryMessageEventHandler(1, &ev, partyUserdata);
+    }
+
     return ORBIS_OK;
 }
 
@@ -58,8 +71,9 @@ s32 PS4_SYSV_ABI sceNpPartyGetMemberVoiceInfo() {
     return ORBIS_OK;
 }
 
-s32 PS4_SYSV_ABI sceNpPartyGetState() {
-    LOG_ERROR(Lib_NpParty, "(STUBBED) called");
+s32 PS4_SYSV_ABI sceNpPartyGetState(OrbisNpPartyState* const state) {
+    LOG_ERROR(Lib_NpParty, "(DUMMY) called");
+    *state = ORBIS_NP_PARTY_STATE_NOT_IN_PARTY;
     return ORBIS_OK;
 }
 
@@ -93,13 +107,25 @@ s32 PS4_SYSV_ABI sceNpPartyLeave() {
     return ORBIS_OK;
 }
 
-s32 PS4_SYSV_ABI sceNpPartyRegisterHandler() {
-    LOG_ERROR(Lib_NpParty, "(STUBBED) called");
+s32 PS4_SYSV_ABI sceNpPartyRegisterHandler(const OrbisNpPartyEventHandlers* const handlers,
+                                           void* userdata) {
+    LOG_ERROR(Lib_NpParty, "(DUMMY) called");
+    partyHandlers.roomEventHandler = handlers->roomEventHandler;
+    partyHandlers.voiceEventHandler = handlers->voiceEventHandler;
+    partyHandlers.binaryMessageEventHandler = handlers->binaryMessageEventHandler;
+    partyHandlers.gameSessionEventHandler = handlers->gameSessionEventHandler;
+    partyUserdata = userdata;
     return ORBIS_OK;
 }
 
-s32 PS4_SYSV_ABI sceNpPartyRegisterHandlerA() {
-    LOG_ERROR(Lib_NpParty, "(STUBBED) called");
+s32 PS4_SYSV_ABI sceNpPartyRegisterHandlerA(const OrbisNpPartyEventHandlers* const handlers,
+                                            void* userdata) {
+    LOG_ERROR(Lib_NpParty, "(DUMMY) called");
+    partyHandlers.roomEventHandler = handlers->roomEventHandler;
+    partyHandlers.voiceEventHandler = handlers->voiceEventHandler;
+    partyHandlers.binaryMessageEventHandler = handlers->binaryMessageEventHandler;
+    partyHandlers.gameSessionEventHandler = handlers->gameSessionEventHandler;
+    partyUserdata = userdata;
     return ORBIS_OK;
 }
 

@@ -92,6 +92,7 @@ int PS4_SYSV_ABI sys_getsockname(OrbisNetId s, OrbisNetSockaddr* addr, u32* padd
     }
     int returncode = file->socket->GetSocketAddress(addr, paddrlen);
     if (returncode >= 0) {
+        LOG_ERROR(Lib_Net, "error code returned : {:#x}", (u32)returncode);
         return returncode;
     }
     LOG_ERROR(Lib_Net, "error code returned : {}", (u32)*Libraries::Kernel::__Error());
@@ -247,6 +248,7 @@ s64 PS4_SYSV_ABI sys_recvfrom(OrbisNetId s, void* buf, u64 len, int flags, Orbis
     }
     s64 returncode = file->socket->ReceivePacket(buf, len, flags, addr, paddrlen);
     if (returncode >= 0) {
+        // LOG_ERROR(Lib_Net, "error code returned : {:#x}", (u32)returncode);
         return returncode;
     }
     LOG_ERROR(Lib_Net, "error code returned : {}", (u32)*Libraries::Kernel::__Error());

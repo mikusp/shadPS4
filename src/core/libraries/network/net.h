@@ -20,7 +20,7 @@ class SymbolsResolver;
 
 namespace Libraries::Net {
 
-static int ConvertFamilies(int family);
+int ConvertFamilies(int family);
 
 enum OrbisNetFamily : u32 {
     ORBIS_NET_AF_INET = 2,

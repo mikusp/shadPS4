@@ -18,6 +18,8 @@ struct OrbisNetEtherAddr {
     u8 data[ORBIS_NET_ETHER_ADDR_LEN];
 };
 
+struct OrbisNetCtlNatInfo;
+
 constexpr int ORBIS_NET_CTL_SSID_LEN = 32 + 1;
 constexpr int ORBIS_NET_CTL_HOSTNAME_LEN = 255 + 1;
 constexpr int ORBIS_NET_CTL_AUTH_NAME_LEN = 127 + 1;
@@ -100,7 +102,7 @@ int PS4_SYSV_ABI sceNetCtlGetIfStat();
 int PS4_SYSV_ABI sceNetCtlGetInfo(int code, OrbisNetCtlInfo* info);
 int PS4_SYSV_ABI sceNetCtlGetInfoIpcInt();
 int PS4_SYSV_ABI sceNetCtlGetInfoV6IpcInt();
-int PS4_SYSV_ABI sceNetCtlGetNatInfo();
+int PS4_SYSV_ABI sceNetCtlGetNatInfo(OrbisNetCtlNatInfo* info);
 int PS4_SYSV_ABI sceNetCtlGetNatInfoIpcInt();
 int PS4_SYSV_ABI sceNetCtlGetNetEvConfigInfoIpcInt();
 int PS4_SYSV_ABI sceNetCtlGetResult(int eventType, int* errorCode);

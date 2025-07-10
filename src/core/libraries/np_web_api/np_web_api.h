@@ -11,6 +11,8 @@ class SymbolsResolver;
 
 namespace Libraries::NpWebApi {
 
+struct OrbisWebApiContentParameter;
+
 s32 PS4_SYSV_ABI sceNpWebApiCreateContext();
 s32 PS4_SYSV_ABI sceNpWebApiCreatePushEventFilter();
 s32 PS4_SYSV_ABI sceNpWebApiCreateServicePushEventFilter();
@@ -34,7 +36,7 @@ s32 PS4_SYSV_ABI sceNpWebApiCreateContextA();
 s32 PS4_SYSV_ABI sceNpWebApiCreateExtdPushEventFilter();
 s32 PS4_SYSV_ABI sceNpWebApiCreateHandle();
 s32 PS4_SYSV_ABI sceNpWebApiCreateMultipartRequest();
-s32 PS4_SYSV_ABI sceNpWebApiCreateRequest();
+s32 PS4_SYSV_ABI sceNpWebApiCreateRequest(int userCtxId, const char* api, const char* path, int method, const OrbisWebApiContentParameter* param, u64* requestid);
 s32 PS4_SYSV_ABI sceNpWebApiDeleteContext();
 s32 PS4_SYSV_ABI sceNpWebApiDeleteExtdPushEventFilter();
 s32 PS4_SYSV_ABI sceNpWebApiDeleteHandle();

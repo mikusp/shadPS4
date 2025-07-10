@@ -165,7 +165,7 @@ int PS4_SYSV_ABI sceRemoteplayPrintAllRegistData() {
 }
 
 int PS4_SYSV_ABI sceRemoteplayProhibit() {
-    LOG_ERROR(Lib_Remoteplay, "(STUBBED) called");
+    LOG_DEBUG(Lib_Remoteplay, "(STUBBED) called");
     return ORBIS_OK;
 }
 

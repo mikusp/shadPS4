@@ -880,7 +880,7 @@ int PS4_SYSV_ABI sceNpCheckCallback() {
 
 int PS4_SYSV_ABI sceNpCheckNpAvailability() {
     LOG_ERROR(Lib_NpManager, "(STUBBED) called");
-    return ORBIS_OK;
+    return SIGNEDIN_STATUS;
 }
 
 int PS4_SYSV_ABI sceNpCheckNpAvailabilityA() {
@@ -900,7 +900,8 @@ int PS4_SYSV_ABI sceNpCheckPlus() {
 
 int PS4_SYSV_ABI sceNpCreateAsyncRequest() {
     LOG_ERROR(Lib_NpManager, "(STUBBED) called");
-    return ORBIS_OK;
+    static int id = 1;
+    return id++;
 }
 
 int PS4_SYSV_ABI sceNpCreateRequest() {
@@ -951,7 +952,7 @@ int PS4_SYSV_ABI sceNpGetAccountId(OrbisNpOnlineId* online_id, u64* account_id) 
     if (online_id == nullptr || account_id == nullptr) {
         return ORBIS_NP_ERROR_INVALID_ARGUMENT;
     }
-    *account_id = 0xFEEDFACE;
+    *account_id = 0x1;
     return SIGNEDIN_STATUS;
 }
 
@@ -960,7 +961,7 @@ int PS4_SYSV_ABI sceNpGetAccountIdA(OrbisUserServiceUserId user_id, u64* account
     if (account_id == nullptr) {
         return ORBIS_NP_ERROR_INVALID_ARGUMENT;
     }
-    *account_id = 0xFEEDFACE;
+    *account_id = 0x1;
     return SIGNEDIN_STATUS;
 }
 
@@ -997,6 +998,7 @@ int PS4_SYSV_ABI sceNpGetNpId(OrbisUserServiceUserId user_id, OrbisNpId* np_id) 
     memset(np_id, 0, sizeof(OrbisNpId));
     strncpy(np_id->handle.data, Config::getUserName().c_str(), sizeof(np_id->handle.data));
     return SIGNEDIN_STATUS;
+    // return ORBIS_OK;
 }
 
 int PS4_SYSV_ABI sceNpGetNpReachabilityState() {
@@ -1012,6 +1014,7 @@ int PS4_SYSV_ABI sceNpGetOnlineId(OrbisUserServiceUserId user_id, OrbisNpOnlineI
     memset(online_id, 0, sizeof(OrbisNpOnlineId));
     strncpy(online_id->data, Config::getUserName().c_str(), sizeof(online_id->data));
     return SIGNEDIN_STATUS;
+    // return ORBIS_OK;
 }
 
 int PS4_SYSV_ABI sceNpGetParentalControlInfo() {
@@ -1757,8 +1760,9 @@ int PS4_SYSV_ABI sceNpNotifyPlusFeature() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceNpPollAsync() {
+int PS4_SYSV_ABI sceNpPollAsync(int id, s32* res) {
     LOG_ERROR(Lib_NpManager, "(STUBBED) called");
+    *res = 0;
     return ORBIS_OK;
 }
 

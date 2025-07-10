@@ -1,13 +1,34 @@
 // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <curl/curl.h>
+#include <mutex>
+#include <unordered_map>
+
+#include "common/assert.h"
 #include "common/logging/log.h"
+#include "common/singleton.h"
+#include "common/types.h"
 #include "core/libraries/error_codes.h"
 #include "core/libraries/libs.h"
 #include "core/libraries/network/http.h"
+#include "http_connection.h"
 #include "http_error.h"
+#include "http_epoll.h"
+#include "http_object.h"
+#include "http_request.h"
+#include "http_table.h"
+#include "http_template.h"
 
 namespace Libraries::Http {
+
+struct HttpContext {
+    int libNetMemId;
+    int libSslCtxId;
+    int poolsize;
+    CURLM* handle;
+};
+
 
 int PS4_SYSV_ABI sceHttpAbortRequest() {
     LOG_ERROR(Lib_Http, "(STUBBED) called");
@@ -34,8 +55,25 @@ int PS4_SYSV_ABI sceHttpAddQuery() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpAddRequestHeader() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
+int PS4_SYSV_ABI sceHttpAddRequestHeader(int id, const char* name, const char* value, s32 mode) {
+    LOG_INFO(Lib_Http, "id = {}, name = {}, value = {}, mode = {}", id, name,
+              value, mode);
+
+    HttpRequest* req;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (req = h->GetObject<HttpRequest>(id); !req) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+    if (!name || (mode != 0 && mode != 1)) {
+        return ORBIS_HTTP_ERROR_INVALID_VALUE;
+    }
+
+    if (mode == 0) { //overwrite
+        req->headers.erase(name);
+    }
+    req->headers.emplace(name, value);
+    
     return ORBIS_OK;
 }
 
@@ -79,18 +117,50 @@ int PS4_SYSV_ABI sceHttpCookieImport() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpCreateConnection() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
-    return ORBIS_OK;
+int PS4_SYSV_ABI sceHttpCreateConnection(int templateId, const char* server, const char* scheme, u16 port, bool keepalive) {
+    LOG_ERROR(Lib_Http, "templateId = {}, server = {}, scheme = {}, port = {}, keepalive = {}", templateId,
+              server, scheme, port, keepalive);
+
+    HttpTemplate* tmpl;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (tmpl = h->GetObject<HttpTemplate>(templateId); !tmpl) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+    auto [id, obj] = h->Create<HttpConnection>(*tmpl);
+    obj->url = std::string{scheme} + "://" + std::string{server} + ":" + std::to_string(port);
+    obj->keepAlive = keepalive;
+
+    return id;
 }
 
-int PS4_SYSV_ABI sceHttpCreateConnectionWithURL() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
-    return ORBIS_OK;
+int PS4_SYSV_ABI sceHttpCreateConnectionWithURL(int templateId, const char* url, bool keepalive) {
+    LOG_INFO(Lib_Http, "templateId = {}, url = {}, keepalive = {}", templateId,
+              url, keepalive);
+    
+    HttpTemplate* tmpl;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (tmpl = h->GetObject<HttpTemplate>(templateId); !tmpl) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+    auto [id, obj] = h->Create<HttpConnection>(*tmpl);
+    obj->url = url;
+    obj->keepAlive = keepalive;
+    
+    return id;
 }
 
-int PS4_SYSV_ABI sceHttpCreateEpoll() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
+int PS4_SYSV_ABI sceHttpCreateEpoll(int httpCtxId, OrbisHttpEpollHandle* handle) {
+    LOG_INFO(Lib_Http, "httpCtxId = {}", httpCtxId);
+
+    auto h = Common::Singleton<HttpTable>::Instance();
+    auto [id, obj] = h->Create<HttpEpoll>();
+
+    obj->httpCtxId = httpCtxId;
+
+    *handle = id;
+
     return ORBIS_OK;
 }
 
@@ -104,9 +174,26 @@ int PS4_SYSV_ABI sceHttpCreateRequest2() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpCreateRequestWithURL() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
-    return ORBIS_OK;
+int PS4_SYSV_ABI sceHttpCreateRequestWithURL(int connectionId, s32 method, const char* url,
+                                             u64 contentLength) {
+    LOG_INFO(Lib_Http,
+              "connectionId = {}, method = {}, url = {}, contentLength = {}",
+              connectionId, method, url, contentLength);
+
+    HttpConnection* conn = nullptr;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (conn = h->GetObject<HttpConnection>(connectionId); !conn) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+    auto [id, obj] = h->Create<HttpRequest>(*conn);
+    
+    obj->connectionId = connectionId;
+    obj->method = method;
+    obj->url = url;
+    obj->contentLength = contentLength;
+
+    return id;
 }
 
 int PS4_SYSV_ABI sceHttpCreateRequestWithURL2() {
@@ -114,9 +201,22 @@ int PS4_SYSV_ABI sceHttpCreateRequestWithURL2() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpCreateTemplate() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
-    return ORBIS_OK;
+int PS4_SYSV_ABI sceHttpCreateTemplate(int httpCtxId, const char* userAgent, int httpVersion,
+                                       int autoProxyConf) {
+    LOG_INFO(
+        Lib_Http,
+        "httpCtxId = {}, userAgent = {}, httpVersion = {}, autoProxyConf = {}",
+        httpCtxId, userAgent, httpVersion, autoProxyConf);
+
+    auto h = Common::Singleton<HttpTable>::Instance();
+    auto [id, obj] = h->Create<HttpTemplate>();
+
+    obj->httpCtxId = httpCtxId;
+    obj->userAgent = userAgent;
+    obj->httpVersion = httpVersion;
+    obj->proxyConf = autoProxyConf;
+    
+    return id;
 }
 
 int PS4_SYSV_ABI sceHttpDbgEnableProfile() {
@@ -184,9 +284,29 @@ int PS4_SYSV_ABI sceHttpGetAcceptEncodingGZIPEnabled() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpGetAllResponseHeaders() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
-    return ORBIS_FAIL;
+int PS4_SYSV_ABI sceHttpGetAllResponseHeaders(int reqid, char** header, u64* size) {
+    LOG_INFO(Lib_Http, "id = {}", reqid);
+
+    if (!header || !size) {
+        return ORBIS_HTTP_ERROR_INVALID_VALUE;
+    }
+    
+    HttpRequest* req;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (req = h->GetObject<HttpRequest>(reqid); !req) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+
+    auto [header_, size_] = req->GetResponseHeaders();
+    if (header == nullptr) {
+        return size_;
+    }
+    *header = (char*)header_;
+    *size = size_;
+    LOG_DEBUG(Lib_Http, "headers of reqid {}: {}", reqid, std::string_view{*header, size_});
+
+    return ORBIS_OK;
 }
 
 int PS4_SYSV_ABI sceHttpGetAuthEnabled() {
@@ -249,13 +369,50 @@ int PS4_SYSV_ABI sceHttpGetRegisteredCtxIds() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpGetResponseContentLength() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
+int PS4_SYSV_ABI sceHttpGetResponseContentLength(int reqid, s32* status, u64* contentLength) {
+    LOG_INFO(Lib_Http, "id = {}", reqid);
+    
+    HttpRequest* req;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (req = h->GetObject<HttpRequest>(reqid); !req) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+
+    auto [ok, len] = req->GetResponseContentLength();
+    LOG_DEBUG(Lib_Http, "contentLength = {}", ok == 0 ? std::to_string(len) : "unknown");
+
+    *status = ok;
+    *contentLength = len;
+
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpGetStatusCode() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
+int PS4_SYSV_ABI sceHttpGetStatusCode(int reqid, s32* status) {
+    LOG_INFO(Lib_Http, "reqid = {}", reqid);
+
+    if (!status) {
+        return ORBIS_HTTP_ERROR_INVALID_VALUE;
+    }
+
+    HttpRequest* req;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (req = h->GetObject<HttpRequest>(reqid); !req) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+
+    if (!req->done) {
+        return ORBIS_HTTP_ERROR_EAGAIN;
+    } 
+
+    if (req->result_code) {
+        return ConvertCurlCodeToOrbis(req->result_code);
+    }
+
+    *status = req->GetStatusCode();
+    LOG_DEBUG(Lib_Http, "statusCode = {:#x}", (u32)*status);
+
     return ORBIS_OK;
 }
 
@@ -277,9 +434,28 @@ int PS4_SYSV_ABI sceHttpParseStatusLine() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpReadData() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
-    return ORBIS_OK;
+int PS4_SYSV_ABI sceHttpReadData(int reqid, void* data, size_t size) {
+    LOG_INFO(Lib_Http, "reqid = {}, size = {}", reqid, size);
+
+    if (!data) {
+        return ORBIS_HTTP_ERROR_INVALID_VALUE;
+    }
+
+    HttpRequest* req;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (req = h->GetObject<HttpRequest>(reqid); !req) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+
+    auto result = req->ReadData((char*)data, size);
+    if (result < 0) {
+        LOG_WARNING(Lib_Http, "reading returned an error: {:#x}", (u32)result);
+    } else {
+        LOG_DEBUG(Lib_Http, "read {} bytes", result);
+    }
+
+    return result;
 }
 
 int PS4_SYSV_ABI sceHttpRedirectCacheFlush() {
@@ -317,9 +493,22 @@ int PS4_SYSV_ABI sceHttpsEnableOptionPrivate() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpSendRequest() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
-    return ORBIS_OK;
+int PS4_SYSV_ABI sceHttpSendRequest(int reqid, const void* postData, size_t size) {
+    LOG_INFO(Lib_Http, "reqid = {}, data = \"{}\" (size = {})", reqid, std::string_view{(char*)postData, size}, size);
+
+    HttpRequest* req;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (req = h->GetObject<HttpRequest>(reqid); !req) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+
+    // if (req->nonBlocking) {
+    if (true) {
+        return req->Send(postData, size);
+    } else {
+        return req->SendBlocking(postData, size);
+    }
 }
 
 int PS4_SYSV_ABI sceHttpSetAcceptEncodingGZIPEnabled() {
@@ -347,8 +536,18 @@ int PS4_SYSV_ABI sceHttpSetChunkedTransferEnabled() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpSetConnectTimeOut() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
+int PS4_SYSV_ABI sceHttpSetConnectTimeOut(int id, u32 timeout) {
+    LOG_INFO(Lib_Http, "id = {}, timeout = {}", id, timeout);
+    
+    HttpObject* obj;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (obj = h->GetObject<HttpObject>(id); !obj) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+
+    obj->connectTimeout = timeout;
+
     return ORBIS_OK;
 }
 
@@ -397,8 +596,23 @@ int PS4_SYSV_ABI sceHttpSetDelayBuildRequestEnabled() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpSetEpoll() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
+int PS4_SYSV_ABI sceHttpSetEpoll(int reqid, OrbisHttpEpollHandle handle, void* arg) {
+    LOG_ERROR(Lib_Http, "(STUBBED) called, reqid = {}, epoll = {}, arg = {:#x}", reqid, handle, reinterpret_cast<u64>(arg));
+    
+    HttpRequest* req;
+    HttpEpoll* epoll;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (req = h->GetObject<HttpRequest>(reqid); !req) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+    if (epoll = h->GetObject<HttpEpoll>(handle); !epoll) {
+        return ORBIS_HTTP_ERROR_INVALID_VALUE;
+    }
+
+    req->epoll = handle;
+    req->arg = arg;
+
     return ORBIS_OK;
 }
 
@@ -417,8 +631,18 @@ int PS4_SYSV_ABI sceHttpSetInflateGZIPEnabled() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpSetNonblock() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
+int PS4_SYSV_ABI sceHttpSetNonblock(int id, bool enable) {
+    LOG_INFO(Lib_Http, "id = {}, enable = {}", id, enable);
+    
+    HttpObject* obj;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (obj = h->GetObject<HttpObject>(id); !obj) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+
+    obj->nonBlocking = enable;
+
     return ORBIS_OK;
 }
 
@@ -442,8 +666,18 @@ int PS4_SYSV_ABI sceHttpSetRecvBlockSize() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpSetRecvTimeOut() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
+int PS4_SYSV_ABI sceHttpSetRecvTimeOut(int id, u64 timeout) {
+    LOG_INFO(Lib_Http, "id = {}, timeout = {}", id, timeout);
+    
+    HttpObject* obj;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (obj = h->GetObject<HttpObject>(id); !obj) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+
+    obj->recvTimeout = timeout;
+
     return ORBIS_OK;
 }
 
@@ -452,8 +686,18 @@ int PS4_SYSV_ABI sceHttpSetRedirectCallback() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpSetRequestContentLength() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
+int PS4_SYSV_ABI sceHttpSetRequestContentLength(int id, u64 contentLength) {
+    LOG_INFO(Lib_Http, "id = {}, contentLength = {}", id, contentLength);
+    
+    HttpRequest* req;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (req = h->GetObject<HttpRequest>(id); !req) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+
+    req->contentLength = contentLength;
+
     return ORBIS_OK;
 }
 
@@ -467,8 +711,18 @@ int PS4_SYSV_ABI sceHttpSetResolveRetry() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpSetResolveTimeOut() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
+int PS4_SYSV_ABI sceHttpSetResolveTimeOut(int id, u64 timeout) {
+    LOG_INFO(Lib_Http, "id = {}, timeout = {}", id, timeout);
+    
+    HttpObject* obj;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (obj = h->GetObject<HttpObject>(id); !obj) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+
+    obj->resolveTimeout = timeout;
+
     return ORBIS_OK;
 }
 
@@ -477,8 +731,18 @@ int PS4_SYSV_ABI sceHttpSetResponseHeaderMaxSize() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpSetSendTimeOut() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
+int PS4_SYSV_ABI sceHttpSetSendTimeOut(int id, u64 timeout) {
+    LOG_INFO(Lib_Http, "id = {}, timeout = {}", id, timeout);
+    
+    HttpObject* obj;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (obj = h->GetObject<HttpObject>(id); !obj) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+
+    obj->sendTimeout = timeout;
+
     return ORBIS_OK;
 }
 
@@ -843,12 +1107,29 @@ int PS4_SYSV_ABI sceHttpUriUnescape(char* out, size_t* require, size_t prepare, 
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpWaitRequest() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
-    return ORBIS_OK;
+int PS4_SYSV_ABI sceHttpWaitRequest(OrbisHttpEpollHandle handle, OrbisHttpNBEvent* events, int maxevents, int timeout) {
+    LOG_ERROR(Lib_Http, "(STUBBED) called, handle = {}, maxevents = {}, timeout = {}",
+              handle, maxevents, timeout);
+
+    if (maxevents < 1) {
+        return ORBIS_HTTP_ERROR_INVALID_VALUE;
+    }
+    
+    HttpEpoll* epoll;
+    auto h = Common::Singleton<HttpTable>::Instance();
+
+    if (epoll = h->GetObject<HttpEpoll>(handle); !epoll) {
+        return ORBIS_HTTP_ERROR_INVALID_ID;
+    }
+
+    return epoll->Wait(events, maxevents, timeout);
 }
 
 void RegisterLib(Core::Loader::SymbolsResolver* sym) {
+    if (curl_global_init(CURL_GLOBAL_ALL)) {
+        UNREACHABLE_MSG("curl failed to init");
+    }
+
     LIB_FUNCTION("hvG6GfBMXg8", "libSceHttp", 1, "libSceHttp", 1, 1, sceHttpAbortRequest);
     LIB_FUNCTION("JKl06ZIAl6A", "libSceHttp", 1, "libSceHttp", 1, 1, sceHttpAbortRequestForce);
     LIB_FUNCTION("sWQiqKvYTVA", "libSceHttp", 1, "libSceHttp", 1, 1, sceHttpAbortWaitRequest);

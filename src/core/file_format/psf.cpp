@@ -36,6 +36,9 @@ bool PSF::Open(const std::filesystem::path& filepath) {
     }
 
     const u64 psfSize = file.GetSize();
+    if (psfSize == 0) {
+        return false;
+    }
     std::vector<u8> psf(psfSize);
     file.Seek(0);
     file.Read(psf);

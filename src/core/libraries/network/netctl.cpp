@@ -19,6 +19,7 @@
 #include "core/libraries/libs.h"
 #include "core/libraries/network/net_ctl_codes.h"
 #include "core/libraries/network/netctl.h"
+#include "net.h"
 #include "net_util.h"
 
 namespace Libraries::NetCtl {
@@ -184,21 +185,24 @@ int PS4_SYSV_ABI sceNetCtlGetInfo(int code, OrbisNetCtlInfo* info) {
                                                        : ORBIS_NET_CTL_LINK_DISCONNECTED;
         break;
     case ORBIS_NET_CTL_INFO_IP_ADDRESS: {
+        // struct in_addr addrIn;
+        // memcpy(&addrIn, resolved->h_addr_list[i], sizeof(u32));
+        // char* addr = inet_ntoa(addrIn);
         strcpy(info->ip_address,
-               "127.0.0.1"); // placeholder in case gethostbyname can't find another ip
-        char devname[80];
-        gethostname(devname, 80);
-        if (struct hostent* resolved = gethostbyname(devname)) {
-            for (int i = 0; resolved->h_addr_list[i] != nullptr; ++i) {
-                struct in_addr addrIn;
-                memcpy(&addrIn, resolved->h_addr_list[i], sizeof(u32));
-                char* addr = inet_ntoa(addrIn);
-                if (strcmp(addr, "127.0.0.1") != 0) {
-                    strcpy(info->ip_address, addr);
-                    break;
-                }
-            }
-        }
+               "192.168.1.107"); // placeholder in case gethostbyname can't find another ip
+        // char devname[80];
+        // gethostname(devname, 80);
+        // if (struct hostent* resolved = gethostbyname(devname)) {
+        //     for (int i = 0; resolved->h_addr_list[i] != nullptr; ++i) {
+        //         struct in_addr addrIn;
+        //         memcpy(&addrIn, resolved->h_addr_list[i], sizeof(u32));
+        //         char* addr = inet_ntoa(addrIn);
+        //         if (strcmp(addr, "127.0.0.1") != 0) {
+        //             strcpy(info->ip_address, addr);
+        //             break;
+        //         }
+        //     }
+        // }
         break;
     }
     case ORBIS_NET_CTL_INFO_NETMASK: {
@@ -258,8 +262,18 @@ int PS4_SYSV_ABI sceNetCtlGetInfoV6IpcInt() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceNetCtlGetNatInfo() {
-    LOG_ERROR(Lib_NetCtl, "(STUBBED) called");
+struct OrbisNetCtlNatInfo {
+    u32 size;
+    s32 stun;
+    s32 nat;
+    Net::OrbisNetInAddr addr;
+};
+
+int PS4_SYSV_ABI sceNetCtlGetNatInfo(OrbisNetCtlNatInfo* info) {
+    LOG_ERROR(Lib_NetCtl, "(STUBBED) called, size = {}", info->size);
+    info->stun = 0;
+    info->nat = 1;
+    info->addr.inaddr_addr = inet_addr("209.35.95.234");
     return ORBIS_OK;
 }
 

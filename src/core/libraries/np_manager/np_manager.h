@@ -382,7 +382,7 @@ int PS4_SYSV_ABI sceNpManagerIntWebLoginRequired();
 int PS4_SYSV_ABI sceNpManagerPrxStartVsh();
 int PS4_SYSV_ABI sceNpManagerPrxStopVsh();
 int PS4_SYSV_ABI sceNpNotifyPlusFeature();
-int PS4_SYSV_ABI sceNpPollAsync();
+int PS4_SYSV_ABI sceNpPollAsync(int id, s32* res);
 int PS4_SYSV_ABI sceNpPush2CreateUserContext();
 int PS4_SYSV_ABI sceNpPush2DeleteUserContext();
 int PS4_SYSV_ABI sceNpPush2Init();

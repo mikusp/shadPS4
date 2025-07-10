@@ -58,6 +58,10 @@ s32 PS4_SYSV_ABI sceKernelLoadStartModule(const char* moduleFileName, u64 args, 
             handle = linker->LoadAndStartModule(path, args, argp, pRes);
             if (handle != -1)
                 return handle;
+            path = mnt->GetHostPath("/app0/sce_module/" + guest_path);
+            handle = linker->LoadAndStartModule(path, args, argp, pRes);
+            if (handle != -1)
+                return handle;
             // if ((flags & 0x10000) != 0)
             //  try load /system/priv/lib/   +basename
             //  try load /system/common/lib/ +basename

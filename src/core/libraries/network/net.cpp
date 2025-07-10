@@ -35,7 +35,7 @@ static thread_local int32_t net_errno = 0;
 
 static bool g_isNetInitialized = true; // TODO init it properly
 
-static int ConvertFamilies(int family) {
+int ConvertFamilies(int family) {
     switch (family) {
     case ORBIS_NET_AF_INET:
         return AF_INET;
@@ -106,7 +106,7 @@ OrbisNetId PS4_SYSV_ABI sceNetAccept(OrbisNetId s, OrbisNetSockaddr* addr, u32* 
         err = *Libraries::Kernel::__Error(); // Standard errno
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -126,6 +126,7 @@ OrbisNetId PS4_SYSV_ABI sceNetAccept(OrbisNetId s, OrbisNetSockaddr* addr, u32* 
     }
 
     *sceNetErrnoLoc() = -result;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", -result);
 
     return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
@@ -205,7 +206,7 @@ int PS4_SYSV_ABI sceNetBind(OrbisNetId s, const OrbisNetSockaddr* addr, u32 addr
         err = *Libraries::Kernel::__Error(); // Standard errno
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -225,6 +226,7 @@ int PS4_SYSV_ABI sceNetBind(OrbisNetId s, const OrbisNetSockaddr* addr, u32 addr
     }
 
     *sceNetErrnoLoc() = -result;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", -result);
 
     return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
@@ -589,7 +591,7 @@ int PS4_SYSV_ABI sceNetConnect(OrbisNetId s, const OrbisNetSockaddr* addr, u32 a
         err = *Libraries::Kernel::__Error(); // Standard errno
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -609,6 +611,7 @@ int PS4_SYSV_ABI sceNetConnect(OrbisNetId s, const OrbisNetSockaddr* addr, u32 a
     }
 
     *sceNetErrnoLoc() = -result;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", -result);
 
     return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
@@ -695,7 +698,8 @@ int PS4_SYSV_ABI sceNetEpollControl(OrbisNetId epollid, OrbisNetEpollFlag op, Or
 
     auto epoll = Common::Singleton<EpollTable>::Instance()->GetEpoll(epollid);
     if (!epoll) {
-        return -ORBIS_NET_EBADF;
+        *sceNetErrnoLoc() = ORBIS_NET_EBADF;
+        return ORBIS_NET_ERROR_EBADF;
     }
 
     auto find_id = [&](OrbisNetId id) {
@@ -764,7 +768,8 @@ int PS4_SYSV_ABI sceNetEpollControl(OrbisNetId epollid, OrbisNetEpollFlag op, Or
         break;
     }
     default:
-        return -ORBIS_NET_EINVAL;
+        *sceNetErrnoLoc() = ORBIS_NET_EINVAL;
+        return ORBIS_NET_ERROR_EINVAL;
     }
 
     return ORBIS_OK;
@@ -773,7 +778,8 @@ int PS4_SYSV_ABI sceNetEpollControl(OrbisNetId epollid, OrbisNetEpollFlag op, Or
 int PS4_SYSV_ABI sceNetEpollCreate(const char* name, int flags) {
     LOG_WARNING(Lib_Net, "called, name = {}, flags = {}", name, flags);
     if (flags != 0) {
-        return -ORBIS_NET_EINVAL;
+        *sceNetErrnoLoc() = ORBIS_NET_EINVAL;
+        return ORBIS_NET_ERROR_EINVAL;
     }
 
     auto epoll = Common::Singleton<EpollTable>::Instance()->CreateHandle(name);
@@ -786,7 +792,8 @@ int PS4_SYSV_ABI sceNetEpollDestroy(OrbisNetId epollid) {
 
     auto epoll = Common::Singleton<EpollTable>::Instance()->GetEpoll(epollid);
     if (!epoll) {
-        return -ORBIS_NET_EBADF;
+        *sceNetErrnoLoc() = ORBIS_NET_EBADF;
+        return ORBIS_NET_ERROR_EBADF;
     }
 
     epoll->Destroy();
@@ -801,7 +808,8 @@ int PS4_SYSV_ABI sceNetEpollWait(OrbisNetId epollid, OrbisNetEpollEvent* events,
 
     auto epoll = Common::Singleton<EpollTable>::Instance()->GetEpoll(epollid);
     if (!epoll) {
-        return -ORBIS_NET_EBADF;
+        *sceNetErrnoLoc() = ORBIS_NET_EBADF;
+        return ORBIS_NET_ERROR_EBADF;
     }
 #ifdef __linux__
     std::vector<epoll_event> native_events{static_cast<size_t>(maxevents)};
@@ -820,7 +828,7 @@ int PS4_SYSV_ABI sceNetEpollWait(OrbisNetId epollid, OrbisNetEpollEvent* events,
                      current_event.events, current_event.data.u64);
             const auto it = std::ranges::find_if(
                 epoll->events, [&](auto& el) { return el.first == current_event.data.fd; });
-            ASSERT(it != epoll->events.end());
+            // ASSERT(it != epoll->events.end());
             events[i] = {
                 .events = ConvertEpollEventsOut(current_event.events),
                 .ident = static_cast<u64>(current_event.data.fd),
@@ -915,7 +923,8 @@ int PS4_SYSV_ABI sceNetGetIfnameNumList() {
 int PS4_SYSV_ABI sceNetGetMacAddress(Libraries::NetCtl::OrbisNetEtherAddr* addr, int flags) {
     if (addr == nullptr) {
         LOG_ERROR(Lib_Net, "addr is null!");
-        return ORBIS_NET_EINVAL;
+        *sceNetErrnoLoc() = ORBIS_NET_EINVAL;
+        return ORBIS_NET_ERROR_EINVAL;
     }
     LOG_DEBUG(Lib_Net, "called");
 
@@ -956,7 +965,7 @@ int PS4_SYSV_ABI sceNetGetpeername(OrbisNetId s, OrbisNetSockaddr* addr, u32* pa
         err = *Libraries::Kernel::__Error(); // Standard errno
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -976,6 +985,7 @@ int PS4_SYSV_ABI sceNetGetpeername(OrbisNetId s, OrbisNetSockaddr* addr, u32* pa
     }
 
     *sceNetErrnoLoc() = -result;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", -result);
 
     return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
@@ -1020,7 +1030,7 @@ int PS4_SYSV_ABI sceNetGetsockname(OrbisNetId s, OrbisNetSockaddr* addr, u32* pa
         err = *Libraries::Kernel::__Error(); // Standard errno
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -1040,6 +1050,7 @@ int PS4_SYSV_ABI sceNetGetsockname(OrbisNetId s, OrbisNetSockaddr* addr, u32* pa
     }
 
     *sceNetErrnoLoc() = -result;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", -result);
 
     return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
@@ -1063,7 +1074,7 @@ int PS4_SYSV_ABI sceNetGetsockopt(OrbisNetId s, int level, int optname, void* op
         err = *Libraries::Kernel::__Error(); // Standard errno
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -1083,6 +1094,7 @@ int PS4_SYSV_ABI sceNetGetsockopt(OrbisNetId s, int level, int optname, void* op
     }
 
     *sceNetErrnoLoc() = -result;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", -result);
 
     return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
@@ -1334,7 +1346,7 @@ int PS4_SYSV_ABI sceNetListen(OrbisNetId s, int backlog) {
         err = *Libraries::Kernel::__Error(); // Standard errno
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -1354,6 +1366,7 @@ int PS4_SYSV_ABI sceNetListen(OrbisNetId s, int backlog) {
     }
 
     *sceNetErrnoLoc() = -result;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", -result);
 
     return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
@@ -1407,7 +1420,7 @@ int PS4_SYSV_ABI sceNetRecv(OrbisNetId s, void* buf, u64 len, int flags) {
     }
     LOG_WARNING(Lib_Net, "called, s = {}, len = {}, flags = {}", s, len, flags);
 
-    int result;
+    s64 result;
     int err;
     int positiveErr;
 
@@ -1420,8 +1433,10 @@ int PS4_SYSV_ABI sceNetRecv(OrbisNetId s, void* buf, u64 len, int flags) {
 
         err = *Libraries::Kernel::__Error(); // Standard errno
 
+        LOG_DEBUG(Lib_Net, "raw errno = {}", err);
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
+        LOG_DEBUG(Lib_Net, "positive errno = {}", positiveErr);
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -1433,16 +1448,17 @@ int PS4_SYSV_ABI sceNetRecv(OrbisNetId s, void* buf, u64 len, int flags) {
     } while (positiveErr == ORBIS_NET_EINTR);
 
     if (positiveErr == ORBIS_NET_EADDRINUSE) {
-        result = -ORBIS_NET_EBADF;
+        err = ORBIS_NET_EBADF;
     } else if (positiveErr == ORBIS_NET_EALREADY) {
-        result = -ORBIS_NET_EINTR;
+        err = ORBIS_NET_EINTR;
     } else {
-        result = -positiveErr;
+        err = positiveErr;
     }
 
-    *sceNetErrnoLoc() = -result;
+    *sceNetErrnoLoc() = err;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", err);
 
-    return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
+    return (err) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
 
 int PS4_SYSV_ABI sceNetRecvfrom(OrbisNetId s, void* buf, u64 len, int flags, OrbisNetSockaddr* addr,
@@ -1450,9 +1466,9 @@ int PS4_SYSV_ABI sceNetRecvfrom(OrbisNetId s, void* buf, u64 len, int flags, Orb
     if (!g_isNetInitialized) {
         return ORBIS_NET_ERROR_ENOTINIT;
     }
-    // LOG_INFO(Lib_Net, "called, s = {}, len = {}, flags = {}", s, len, flags);
+    LOG_INFO(Lib_Net, "called, s = {}, len = {}, flags = {}", s, len, flags);
 
-    int result;
+    s64 result;
     int err;
     int positiveErr;
 
@@ -1464,9 +1480,11 @@ int PS4_SYSV_ABI sceNetRecvfrom(OrbisNetId s, void* buf, u64 len, int flags, Orb
         }
 
         err = *Libraries::Kernel::__Error(); // Standard errno
+        LOG_DEBUG(Lib_Net, "raw errno = {}", err);
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
+        LOG_DEBUG(Lib_Net, "positive errno = {}", positiveErr);
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -1478,16 +1496,17 @@ int PS4_SYSV_ABI sceNetRecvfrom(OrbisNetId s, void* buf, u64 len, int flags, Orb
     } while (positiveErr == ORBIS_NET_EINTR);
 
     if (positiveErr == ORBIS_NET_EADDRINUSE) {
-        result = -ORBIS_NET_EBADF;
+        err = ORBIS_NET_EBADF;
     } else if (positiveErr == ORBIS_NET_EALREADY) {
-        result = -ORBIS_NET_EINTR;
+        err = ORBIS_NET_EINTR;
     } else {
-        result = -positiveErr;
+        err = positiveErr;
     }
 
-    *sceNetErrnoLoc() = -result;
+    *sceNetErrnoLoc() = err;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", err);
 
-    return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
+    return (err) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
 
 int PS4_SYSV_ABI sceNetRecvmsg(OrbisNetId s, OrbisNetMsghdr* msg, int flags) {
@@ -1510,7 +1529,7 @@ int PS4_SYSV_ABI sceNetRecvmsg(OrbisNetId s, OrbisNetMsghdr* msg, int flags) {
         err = *Libraries::Kernel::__Error(); // Standard errno
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -1530,6 +1549,7 @@ int PS4_SYSV_ABI sceNetRecvmsg(OrbisNetId s, OrbisNetMsghdr* msg, int flags) {
     }
 
     *sceNetErrnoLoc() = -result;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", -result);
 
     return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
@@ -1593,10 +1613,8 @@ int PS4_SYSV_ABI sceNetResolverStartNtoa(OrbisNetId resolverid, const char* host
 
     if ((flags & ORBIS_NET_RESOLVER_ASYNC) != 0) {
         // moves processing to EpollWait
-        LOG_ERROR(Lib_Net, "async resolution is not implemented");
-        *sceNetErrnoLoc() = ORBIS_NET_RESOLVER_EINTERNAL;
-        auto ret = -ORBIS_NET_RESOLVER_EINTERNAL | ORBIS_NET_ERROR_BASE;
-        return ret;
+        LOG_WARNING(Lib_Net, "processing async resolution synchronously");
+        // UNREACHABLE_MSG("unimplemented");
     }
 
     const addrinfo hints = {
@@ -1621,6 +1639,10 @@ int PS4_SYSV_ABI sceNetResolverStartNtoa(OrbisNetId resolverid, const char* host
     }
 
     freeaddrinfo(info);
+
+    if ((flags & ORBIS_NET_RESOLVER_ASYNC) != 0) {
+    }
+
     return ret;
 }
 
@@ -1671,7 +1693,7 @@ int PS4_SYSV_ABI sceNetSend(OrbisNetId s, const void* buf, u64 len, int flags) {
         err = *Libraries::Kernel::__Error(); // Standard errno
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -1691,6 +1713,7 @@ int PS4_SYSV_ABI sceNetSend(OrbisNetId s, const void* buf, u64 len, int flags) {
     }
 
     *sceNetErrnoLoc() = -result;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", -result);
 
     return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
@@ -1715,7 +1738,7 @@ int PS4_SYSV_ABI sceNetSendmsg(OrbisNetId s, const OrbisNetMsghdr* msg, int flag
         err = *Libraries::Kernel::__Error(); // Standard errno
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -1735,6 +1758,7 @@ int PS4_SYSV_ABI sceNetSendmsg(OrbisNetId s, const OrbisNetMsghdr* msg, int flag
     }
 
     *sceNetErrnoLoc() = -result;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", -result);
 
     return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
@@ -1760,7 +1784,7 @@ int PS4_SYSV_ABI sceNetSendto(OrbisNetId s, const void* buf, u64 len, int flags,
         err = *Libraries::Kernel::__Error(); // Standard errno
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -1780,6 +1804,7 @@ int PS4_SYSV_ABI sceNetSendto(OrbisNetId s, const void* buf, u64 len, int flags,
     }
 
     *sceNetErrnoLoc() = -result;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", -result);
 
     return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
@@ -1824,7 +1849,7 @@ int PS4_SYSV_ABI sceNetSetsockopt(OrbisNetId s, int level, int optname, const vo
         err = *Libraries::Kernel::__Error(); // Standard errno
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -1844,6 +1869,7 @@ int PS4_SYSV_ABI sceNetSetsockopt(OrbisNetId s, int level, int optname, const vo
     }
 
     *sceNetErrnoLoc() = -result;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", -result);
 
     return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
@@ -1948,7 +1974,7 @@ int PS4_SYSV_ABI sceNetShutdown(OrbisNetId s, int how) {
         err = *Libraries::Kernel::__Error(); // Standard errno
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -1968,6 +1994,7 @@ int PS4_SYSV_ABI sceNetShutdown(OrbisNetId s, int how) {
     }
 
     *sceNetErrnoLoc() = -result;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", -result);
 
     return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
@@ -1994,7 +2021,7 @@ OrbisNetId PS4_SYSV_ABI sceNetSocket(const char* name, int family, int type, int
         err = *Libraries::Kernel::__Error(); // Standard errno
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -2014,6 +2041,7 @@ OrbisNetId PS4_SYSV_ABI sceNetSocket(const char* name, int family, int type, int
     }
 
     *sceNetErrnoLoc() = -result;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", -result);
 
     return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
@@ -2038,7 +2066,7 @@ int PS4_SYSV_ABI sceNetSocketAbort(OrbisNetId s, int flags) {
         err = *Libraries::Kernel::__Error(); // Standard errno
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -2058,6 +2086,7 @@ int PS4_SYSV_ABI sceNetSocketAbort(OrbisNetId s, int flags) {
     }
 
     *sceNetErrnoLoc() = -result;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", -result);
 
     return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }
@@ -2082,7 +2111,7 @@ int PS4_SYSV_ABI sceNetSocketClose(OrbisNetId s) {
         err = *Libraries::Kernel::__Error(); // Standard errno
 
         // Convert to positive error for comparison
-        int positiveErr = (err < 0) ? -err : err;
+        positiveErr = (err < 0) ? -err : err;
 
         if ((positiveErr & 0xfff0000) != 0) {
             // Unknown/fatal error range
@@ -2102,6 +2131,7 @@ int PS4_SYSV_ABI sceNetSocketClose(OrbisNetId s) {
     }
 
     *sceNetErrnoLoc() = -result;
+    LOG_DEBUG(Lib_Net, "sce_net_errno = {}", -result);
 
     return (-result) | ORBIS_NET_ERROR_BASE; // Convert to official ORBIS_NET_ERROR code
 }

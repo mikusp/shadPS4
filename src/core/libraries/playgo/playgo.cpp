@@ -158,13 +158,14 @@ s32 PS4_SYSV_ABI scePlayGoGetLocus(OrbisPlayGoHandle handle, const OrbisPlayGoCh
     }
 
     for (int i = 0; i < numberOfEntries; i++) {
-        if (chunkIds[i] < playgo->chunks.size()) {
+        // if (chunkIds[i] < playgo->chunks.size()) {
             outLoci[i] = OrbisPlayGoLocus::LocalFast;
-        } else {
-            outLoci[i] = OrbisPlayGoLocus::NotDownloaded;
-            return ORBIS_PLAYGO_ERROR_BAD_CHUNK_ID;
-        }
+        // } else {
+            // outLoci[i] = OrbisPlayGoLocus::NotDownloaded;
+            // return ORBIS_PLAYGO_ERROR_BAD_CHUNK_ID;
+        // }
     }
+    LOG_DEBUG(Lib_PlayGo, "return OK");
     return ORBIS_OK;
 }
 

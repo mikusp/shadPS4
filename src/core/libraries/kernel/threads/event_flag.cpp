@@ -159,6 +159,10 @@ public:
         m_status = Status::Set;
     }
 
+    std::string Name() const {
+        return m_name;
+    }
+
 private:
     enum class Status { Set, Canceled, Deleted };
 
@@ -322,10 +326,11 @@ int PS4_SYSV_ABI sceKernelPollEventFlag(OrbisKernelEventFlag ef, u64 bitPattern,
 }
 int PS4_SYSV_ABI sceKernelWaitEventFlag(OrbisKernelEventFlag ef, u64 bitPattern, u32 waitMode,
                                         u64* pResultPat, OrbisKernelUseconds* pTimeout) {
-    LOG_DEBUG(Kernel_Event, "called bitPattern = {:#x} waitMode = {:#x}", bitPattern, waitMode);
     if (ef == nullptr) {
         return ORBIS_KERNEL_ERROR_ESRCH;
     }
+    LOG_DEBUG(Kernel_Event, "called {}: bitPattern = {:#x} waitMode = {:#x}", ef->Name(),
+              bitPattern, waitMode);
 
     if (bitPattern == 0) {
         return ORBIS_KERNEL_ERROR_EINVAL;

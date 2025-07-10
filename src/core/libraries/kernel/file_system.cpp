@@ -262,7 +262,8 @@ s32 PS4_SYSV_ABI close(s32 fd) {
     }
     if (fd < 3) {
         // This is technically possible, but it's usually caused by some stubbed function instead.
-        LOG_WARNING(Kernel_Fs, "called on an std handle, fd = {}", fd);
+        LOG_WARNING(Kernel_Fs, "called on an std handle, fd = {}, ignoring", fd);
+        return ORBIS_OK;
     }
     if (file->type == Core::FileSys::FileType::Regular) {
         file->f.Close();
@@ -290,6 +291,7 @@ s32 PS4_SYSV_ABI sceKernelClose(s32 fd) {
 }
 
 s64 PS4_SYSV_ABI write(s32 fd, const void* buf, size_t nbytes) {
+    LOG_DEBUG(Kernel_Fs, "fd = {}, nbytes = {}", fd, nbytes);
     auto* h = Common::Singleton<Core::FileSys::HandleTable>::Instance();
     auto* file = h->GetFile(fd);
     if (file == nullptr) {
@@ -474,6 +476,8 @@ s64 PS4_SYSV_ABI sceKernelLseek(s32 fd, s64 offset, s32 whence) {
 }
 
 s64 PS4_SYSV_ABI read(s32 fd, void* buf, size_t nbytes) {
+    LOG_DEBUG(Kernel_Fs, "fd = {}, nbytes = {}", fd, nbytes);
+
     auto* h = Common::Singleton<Core::FileSys::HandleTable>::Instance();
     auto* file = h->GetFile(fd);
     if (file == nullptr) {
@@ -624,7 +628,7 @@ s32 PS4_SYSV_ABI posix_stat(const char* path, OrbisKernelStat* sb) {
 s32 PS4_SYSV_ABI sceKernelStat(const char* path, OrbisKernelStat* sb) {
     s32 result = posix_stat(path, sb);
     if (result < 0) {
-        LOG_ERROR(Kernel_Fs, "error = {}", *__Error());
+        LOG_ERROR(Kernel_Fs, "error = {}, path = {}", *__Error(), path);
         return ErrnoToSceKernelError(*__Error());
     }
     return result;
