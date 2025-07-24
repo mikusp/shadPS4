@@ -605,6 +605,21 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb, std::span<c
                     regs.cp_strmout_cntl.offset_update_done = 1;
                 } else if (event->event_index.Value() == EventIndex::ZpassDone) {
                     LOG_WARNING(Render, "Unimplemented occlusion query");
+                    if (event->event_type.Value() == EventType::PixelPipeStatControl) {
+
+                    } else if (event->event_type.Value() == EventType::PixelPipeStatDump) {
+                        if ((event->Address<u64>() & 0x8) == 0) {
+                            // occlusion query start
+                            if (rasterizer) {
+                                rasterizer->StartOcclusionQuery((event->Address<VAddr>()));
+                            }
+                        } else {
+                            // occlusion query end
+                            if (rasterizer) {
+                                rasterizer->EndOcclusionQuery(event->Address<VAddr>() & ~0xF);
+                            }
+                        }
+                    }
                 }
                 break;
             }

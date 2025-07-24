@@ -70,6 +70,9 @@ public:
     void Finish();
     void EndCommandList();
 
+    void StartOcclusionQuery(VAddr addr);
+    void EndOcclusionQuery(VAddr addr);
+
     PipelineCache& GetPipelineCache() {
         return pipeline_cache;
     }
@@ -126,6 +129,11 @@ private:
     boost::icl::interval_set<VAddr> mapped_ranges;
     Common::SharedFirstMutex mapped_ranges_mutex;
     PipelineCache pipeline_cache;
+    vk::QueryPool occlusion_query_pool;
+    u32 occlusion_current_index{};
+    std::map<VAddr, u32> occlusion_index_mapping;
+    VideoCore::Buffer occlusion_query_buffer;
+    std::vector<VAddr> waiting_queries{};
 
     boost::container::static_vector<
         std::pair<VideoCore::ImageId, VideoCore::TextureCache::RenderTargetDesc>, 8>

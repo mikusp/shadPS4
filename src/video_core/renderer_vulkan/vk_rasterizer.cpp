@@ -17,6 +17,10 @@
 #undef MemoryBarrier
 #endif
 
+namespace {
+const int OCCLUSION_QUERIES_COUNT = 1024;
+}
+
 namespace Vulkan {
 
 static Shader::PushData MakeUserData(const AmdGpu::Liverpool::Regs& regs) {
@@ -35,11 +39,25 @@ Rasterizer::Rasterizer(const Instance& instance_, Scheduler& scheduler_,
     : instance{instance_}, scheduler{scheduler_}, page_manager{this},
       buffer_cache{instance, scheduler, liverpool_, texture_cache, page_manager},
       texture_cache{instance, scheduler, buffer_cache, page_manager}, liverpool{liverpool_},
-      memory{Core::Memory::Instance()}, pipeline_cache{instance, scheduler, liverpool} {
+      memory{Core::Memory::Instance()}, pipeline_cache{instance, scheduler, liverpool},
+      occlusion_query_buffer{instance,
+                             scheduler,
+                             VideoCore::MemoryUsage::DeviceLocal,
+                             0,
+                             vk::BufferUsageFlagBits::eConditionalRenderingEXT |
+                                 vk::BufferUsageFlagBits::eTransferDst,
+                             sizeof(u32) * OCCLUSION_QUERIES_COUNT} {
     if (!Config::nullGpu()) {
         liverpool->BindRasterizer(this);
     }
     memory->SetRasterizer(this);
+    occlusion_query_pool = Check<"occlusion query pool">(instance.GetDevice().createQueryPool({
+        .queryType = vk::QueryType::eOcclusion,
+        .queryCount = OCCLUSION_QUERIES_COUNT,
+    }));
+    instance.GetDevice().resetQueryPool(occlusion_query_pool, 0, OCCLUSION_QUERIES_COUNT);
+    Vulkan::SetObjectName(instance.GetDevice(), occlusion_query_buffer.Handle(),
+                          "OcclusionQueryBuffer:{:#x}", sizeof(u32) * OCCLUSION_QUERIES_COUNT);
 }
 
 Rasterizer::~Rasterizer() = default;
@@ -1017,6 +1035,66 @@ void Rasterizer::UnmapMemory(VAddr addr, u64 size) {
         std::scoped_lock lock{mapped_ranges_mutex};
         mapped_ranges -= decltype(mapped_ranges)::interval_type::right_open(addr, addr + size);
     }
+}
+
+void Rasterizer::StartOcclusionQuery(VAddr addr) {
+    LOG_DEBUG(Render_Vulkan, "addr = {:#x}, index = {}", addr, occlusion_current_index);
+
+    scheduler.EndRendering();
+
+    for (auto it = waiting_queries.begin(); it != waiting_queries.end();) {
+        if (!occlusion_index_mapping.contains(*it)) {
+            ++it;
+            continue;
+        }
+
+        auto index = occlusion_index_mapping[*it];
+        u64 query_result = 0;
+        const auto result = instance.GetDevice().getQueryPoolResults(
+            occlusion_query_pool, index, 1, 8, &query_result, 0,
+            vk::QueryResultFlagBits::e64);
+        
+        if (result == vk::Result::eSuccess) {
+            u64* start_query_value = reinterpret_cast<u64*>(addr);
+            u64* end_query_value = start_query_value + 1;
+            *end_query_value = *start_query_value + query_result;
+            LOG_DEBUG(Render_Vulkan, "query {:#x} returned {} hits", *it, query_result);
+            it = waiting_queries.erase(it);
+        } else if (result == vk::Result::eNotReady) {
+            // hope we'll get that element later
+            LOG_DEBUG(Render_Vulkan, "query {:#x} is not ready", *it);
+            ++it;
+        } else {
+            LOG_WARNING(Render_Vulkan, "waiting for a result of an occlusion query {:#x} failed with {}", *it, vk::to_string(result));
+            ++it;
+        }
+    }
+
+    const auto cmdbuf = scheduler.CommandBuffer();
+    cmdbuf.resetQueryPool(occlusion_query_pool, occlusion_current_index, 1);
+    ScopeMarkerBegin("gfx:{}:occlusionQuery", fmt::ptr(reinterpret_cast<const void*>(addr)));
+    cmdbuf.beginQuery(occlusion_query_pool, occlusion_current_index,
+                      vk::QueryControlFlagBits::ePrecise);
+
+    occlusion_index_mapping.insert_or_assign(addr, occlusion_current_index);
+
+    occlusion_current_index++;
+    if (occlusion_current_index > OCCLUSION_QUERIES_COUNT - 1) {
+        occlusion_current_index = 0;
+    }
+}
+
+void Rasterizer::EndOcclusionQuery(VAddr addr) {
+    ASSERT(occlusion_index_mapping.contains(addr));
+
+    auto index = occlusion_index_mapping[addr];
+    LOG_DEBUG(Render_Vulkan, "addr = {:#x}, index = {}", addr, index);
+
+    scheduler.EndRendering();
+    const auto cmdbuf = scheduler.CommandBuffer();
+    cmdbuf.endQuery(occlusion_query_pool, index);
+    waiting_queries.push_back(addr);
+    ScopeMarkerEnd();
 }
 
 void Rasterizer::UpdateDynamicState(const GraphicsPipeline& pipeline) const {
