@@ -9,23 +9,66 @@
 
 namespace Libraries::HmdSetupDialog {
 
+using Libraries::CommonDialog::Status;
+
+static Status hmdDialog = Status::NONE;
+static Status vrDialog = Status::NONE;
+
 s32 PS4_SYSV_ABI sceHmdSetupDialogInitialize() {
     LOG_ERROR(Lib_HmdSetupDialog, "(STUBBED) called");
-    return ORBIS_OK;
+    switch (hmdDialog) {
+    case Status::NONE:
+        hmdDialog = Status::INITIALIZED;
+        return ORBIS_OK;
+    default:
+        return (s32)Libraries::CommonDialog::Error::ALREADY_INITIALIZED;
+    }
 }
 
 s32 PS4_SYSV_ABI sceHmdSetupDialogClose() {
     LOG_ERROR(Lib_HmdSetupDialog, "(STUBBED) called");
-    return ORBIS_OK;
+    switch (hmdDialog) {
+    case Status::NONE:
+        return (s32)Libraries::CommonDialog::Error::NOT_INITIALIZED;
+    case Status::RUNNING:
+        hmdDialog = Status::FINISHED;
+        return ORBIS_OK;
+    default:
+        return ORBIS_OK;
+    }
 }
 
 s32 PS4_SYSV_ABI sceHmdSetupDialogOpen(const OrbisHmdSetupDialogParam* param) {
     LOG_ERROR(Lib_HmdSetupDialog, "(STUBBED) called");
     // On real hardware, a dialog would show up telling the user to connect a PSVR headset.
-    return ORBIS_OK;
+    switch (hmdDialog) {
+    case Status::NONE:
+        return (s32)Libraries::CommonDialog::Error::NOT_INITIALIZED;
+    case Status::FINISHED:
+        hmdDialog = Status::RUNNING;
+        return ORBIS_OK;
+    default:
+        return (s32)Libraries::CommonDialog::Error::INVALID_STATE;
+    }
 }
 
 s32 PS4_SYSV_ABI sceHmdSetupDialogGetResult(OrbisHmdSetupDialogResult* result) {
+    LOG_ERROR(Lib_HmdSetupDialog, "(STUBBED) called");
+    // Simulates behavior of user pressing circle to cancel the dialog.
+    // Result::OK would mean a headset was connected.
+    switch (hmdDialog) {
+    case Status::NONE:
+        return (s32)Libraries::CommonDialog::Error::NOT_INITIALIZED;
+    case Status::FINISHED: {
+        result->result = Libraries::CommonDialog::Result::USER_CANCELED;
+        return ORBIS_OK;
+    }
+    default:
+        return (s32)Libraries::CommonDialog::Error::INVALID_STATE;
+    }
+}
+
+s32 PS4_SYSV_ABI sceVrServiceDialogGetResult(OrbisHmdSetupDialogResult* result) {
     LOG_ERROR(Lib_HmdSetupDialog, "(STUBBED) called");
     // Simulates behavior of user pressing circle to cancel the dialog.
     // Result::OK would mean a headset was connected.
@@ -35,17 +78,28 @@ s32 PS4_SYSV_ABI sceHmdSetupDialogGetResult(OrbisHmdSetupDialogResult* result) {
 
 Libraries::CommonDialog::Status PS4_SYSV_ABI sceHmdSetupDialogUpdateStatus() {
     LOG_ERROR(Lib_HmdSetupDialog, "(STUBBED) called");
+    return hmdDialog;
+}
+
+Libraries::CommonDialog::Status PS4_SYSV_ABI sceVrServiceDialogUpdateStatus() {
+    LOG_ERROR(Lib_HmdSetupDialog, "(STUBBED) called");
     return Libraries::CommonDialog::Status::FINISHED;
 }
 
 Libraries::CommonDialog::Status PS4_SYSV_ABI sceHmdSetupDialogGetStatus() {
     LOG_ERROR(Lib_HmdSetupDialog, "(STUBBED) called");
-    return Libraries::CommonDialog::Status::FINISHED;
+    return hmdDialog;
 }
 
 s32 PS4_SYSV_ABI sceHmdSetupDialogTerminate() {
     LOG_ERROR(Lib_HmdSetupDialog, "(STUBBED) called");
-    return ORBIS_OK;
+    switch (hmdDialog) {
+    case Status::NONE:
+        return (s32)Libraries::CommonDialog::Error::NOT_INITIALIZED;
+    default:
+        hmdDialog = Status::NONE;
+        return ORBIS_OK;
+    }
 }
 
 void RegisterLib(Core::Loader::SymbolsResolver* sym) {
@@ -63,6 +117,10 @@ void RegisterLib(Core::Loader::SymbolsResolver* sym) {
                  sceHmdSetupDialogTerminate);
     LIB_FUNCTION("Ud7j3+RDIBg", "libSceHmdSetupDialog", 1, "libSceHmdSetupDialog",
                  sceHmdSetupDialogUpdateStatus);
+    LIB_FUNCTION("RmRtBJpoHlA", "libSceVrServiceDialog", 1, "libSceVrServiceDialog",
+                 sceVrServiceDialogUpdateStatus);
+    LIB_FUNCTION("cYnBkgm8I0c", "libSceVrServiceDialog", 1, "libSceVrServiceDialog",
+                 sceVrServiceDialogGetResult);
 };
 
 } // namespace Libraries::HmdSetupDialog

@@ -50,7 +50,7 @@ s32 PS4_SYSV_ABI sceVoiceGetPortAttr() {
 }
 
 s32 PS4_SYSV_ABI sceVoiceGetPortInfo(u32 port_id, OrbisVoicePortInfo* info) {
-    LOG_ERROR(Lib_Voice, "(STUBBED) called");
+    LOG_ERROR(Lib_Voice, "(STUBBED) called port_id = {}", port_id);
     info->port_type = 0;
     info->state = 0;
     info->byte_count = 0;

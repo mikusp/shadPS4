@@ -34,11 +34,15 @@
 #include "core/libraries/np/np_auth.h"
 #include "core/libraries/np/np_common.h"
 #include "core/libraries/np/np_manager.h"
+#include "core/libraries/np/np_matching2.h"
 #include "core/libraries/np/np_party.h"
 #include "core/libraries/np/np_profile_dialog.h"
 #include "core/libraries/np/np_score.h"
+#include "core/libraries/np/np_signaling.h"
 #include "core/libraries/np/np_trophy.h"
+#include "core/libraries/np/np_tus.h"
 #include "core/libraries/np/np_web_api.h"
+#include "core/libraries/np/np_web_api2.h"
 #include "core/libraries/pad/pad.h"
 #include "core/libraries/playgo/playgo.h"
 #include "core/libraries/playgo/playgo_dialog.h"
@@ -94,9 +98,13 @@ void InitHLELibs(Core::Loader::SymbolsResolver* sym) {
     Libraries::AudioIn::RegisterLib(sym);
     Libraries::Np::NpCommon::RegisterLib(sym);
     Libraries::Np::NpManager::RegisterLib(sym);
+    Libraries::Np::NpMatching2::RegisterLib(sym);
     Libraries::Np::NpScore::RegisterLib(sym);
+    Libraries::Np::NpSignaling::RegisterLib(sym);
     Libraries::Np::NpTrophy::RegisterLib(sym);
+    Libraries::Np::NpTus::RegisterLib(sym);
     Libraries::Np::NpWebApi::RegisterLib(sym);
+    Libraries::Np::NpWebApi2::RegisterLib(sym);
     Libraries::Np::NpProfileDialog::RegisterLib(sym);
     Libraries::Np::NpAuth::RegisterLib(sym);
     Libraries::Np::NpParty::RegisterLib(sym);

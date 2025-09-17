@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2025 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <magic_enum/magic_enum.hpp>
 #include "common/logging/log.h"
 #include "core/libraries/error_codes.h"
 #include "core/libraries/libs.h"
@@ -10,7 +11,8 @@ namespace Libraries::Np::NpWebApi {
 
 s32 PS4_SYSV_ABI sceNpWebApiCreateContext() {
     LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
-    return ORBIS_OK;
+    static s32 id = 1;
+    return id++;
 }
 
 s32 PS4_SYSV_ABI sceNpWebApiCreatePushEventFilter() {
@@ -103,19 +105,22 @@ s32 PS4_SYSV_ABI sceNpWebApiClearUnusedConnection() {
     return ORBIS_OK;
 }
 
-s32 PS4_SYSV_ABI sceNpWebApiCreateContextA() {
-    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
-    return ORBIS_OK;
+s32 PS4_SYSV_ABI sceNpWebApiCreateContextA(s32 libCtxId, Libraries::UserService::OrbisUserServiceUserId userId) {
+    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called libCtxId = {}, userId = {}", libCtxId, userId);
+    static s32 context = 0;
+    return context++;
 }
 
-s32 PS4_SYSV_ABI sceNpWebApiCreateExtdPushEventFilter() {
-    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
-    return ORBIS_OK;
+s32 PS4_SYSV_ABI sceNpWebApiCreateExtdPushEventFilter(s32 libCtxId, s32 handleId, const char* serviceName, OrbisNpServiceLabel serviceLabel, const void* params, size_t paramsNum) {
+    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called libCtxId = {} handleId = {} serviceName = {} serviceLabel = {} paramsNum = {}", libCtxId, handleId, serviceName ? serviceName : "", serviceLabel, paramsNum);
+    static s32 filter = 0;
+    return filter++;
 }
 
-s32 PS4_SYSV_ABI sceNpWebApiCreateHandle() {
-    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
-    return ORBIS_OK;
+s32 PS4_SYSV_ABI sceNpWebApiCreateHandle(s32 libCtxId) {
+    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called libCtxId = {}", libCtxId);
+    static s32 handle = 0;
+    return handle++;
 }
 
 s32 PS4_SYSV_ABI sceNpWebApiCreateMultipartRequest() {
@@ -123,8 +128,10 @@ s32 PS4_SYSV_ABI sceNpWebApiCreateMultipartRequest() {
     return ORBIS_OK;
 }
 
-s32 PS4_SYSV_ABI sceNpWebApiCreateRequest() {
-    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
+s32 PS4_SYSV_ABI sceNpWebApiCreateRequest(s32 userCtxId, const char* api, const char* path, OrbisNpWebApiHttpMethod method, const void* params, s64* reqId) {
+    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called userCtxId = {} api = {} path = {} method = {}", userCtxId, api, path, magic_enum::enum_name(method));
+    static s64 request = 0;
+    *reqId = request++;
     return ORBIS_OK;
 }
 
@@ -138,13 +145,13 @@ s32 PS4_SYSV_ABI sceNpWebApiDeleteExtdPushEventFilter() {
     return ORBIS_OK;
 }
 
-s32 PS4_SYSV_ABI sceNpWebApiDeleteHandle() {
-    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
+s32 PS4_SYSV_ABI sceNpWebApiDeleteHandle(s32 libCtxId, s32 handleId) {
+    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called libCtxId = {} handleId = {}", libCtxId, handleId);
     return ORBIS_OK;
 }
 
-s32 PS4_SYSV_ABI sceNpWebApiDeleteRequest() {
-    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
+s32 PS4_SYSV_ABI sceNpWebApiDeleteRequest(s64 reqId) {
+    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called reqId = {}", reqId);
     return ORBIS_OK;
 }
 
@@ -163,8 +170,9 @@ s32 PS4_SYSV_ABI sceNpWebApiGetHttpResponseHeaderValue() {
     return ORBIS_OK;
 }
 
-s32 PS4_SYSV_ABI sceNpWebApiGetHttpResponseHeaderValueLength() {
-    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
+s32 PS4_SYSV_ABI sceNpWebApiGetHttpResponseHeaderValueLength(s64 reqId, const char* field, s64* len) {
+    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called reqId = {} field = {}", reqId, field);
+    *len = 0;
     return ORBIS_OK;
 }
 
@@ -219,8 +227,8 @@ s32 PS4_SYSV_ABI sceNpWebApiIntRegisterServicePushEventCallbackA() {
     return ORBIS_OK;
 }
 
-s32 PS4_SYSV_ABI sceNpWebApiReadData() {
-    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
+s32 PS4_SYSV_ABI sceNpWebApiReadData(s64 reqId, void* data, s64 len) {
+    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called reqId = {} len = {}", reqId, len);
     return ORBIS_OK;
 }
 
@@ -244,8 +252,15 @@ s32 PS4_SYSV_ABI sceNpWebApiSendRequest() {
     return ORBIS_OK;
 }
 
-s32 PS4_SYSV_ABI sceNpWebApiSendRequest2() {
-    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
+struct OrbisWebApiResponseInformation {
+    s32 httpStatus;
+    char* error;
+    u64 errorSize;
+    u64 responseSize;
+};
+
+s32 PS4_SYSV_ABI sceNpWebApiSendRequest2(s64 reqId, const void* data, size_t len, OrbisWebApiResponseInformation* response) {
+    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called reqId = {} len = {}", reqId, len);
     return ORBIS_OK;
 }
 

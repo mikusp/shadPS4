@@ -54,8 +54,14 @@ struct OrbisKernelStat;
 namespace Libraries::Net {
 
 struct Socket;
+struct P2PSocket;
 
 typedef std::shared_ptr<Socket> SocketPtr;
+
+struct P2PSocketMap {
+    std::mutex mutex;
+    std::map<u16, std::map<u16, std::shared_ptr<P2PSocket>>> sockets{};
+};
 
 struct OrbisNetLinger {
     s32 l_onoff;
@@ -81,7 +87,7 @@ struct Socket {
     virtual int GetSocketAddress(OrbisNetSockaddr* name, u32* namelen) = 0;
     virtual int GetPeerName(OrbisNetSockaddr* addr, u32* namelen) = 0;
     virtual int fstat(Libraries::Kernel::OrbisKernelStat* stat) = 0;
-    virtual std::optional<net_socket> Native() = 0;
+    virtual net_socket Native() = 0;
     std::mutex m_mutex;
     std::mutex receive_mutex;
 };
@@ -119,16 +125,16 @@ struct PosixSocket : public Socket {
     int GetSocketAddress(OrbisNetSockaddr* name, u32* namelen) override;
     int GetPeerName(OrbisNetSockaddr* addr, u32* namelen) override;
     int fstat(Libraries::Kernel::OrbisKernelStat* stat) override;
-    std::optional<net_socket> Native() override {
+    net_socket Native() override {
         return sock;
     }
 };
 
 struct P2PSocket : public Socket {
-    explicit P2PSocket(int domain, int type, int protocol) : Socket(domain, type, protocol) {}
-    bool IsValid() const override {
-        return true;
-    }
+    net_socket sock;
+    int socket_type;
+    explicit P2PSocket(int domain, int type, int protocol);
+    bool IsValid() const override;
     int Close() override;
     int SetSocketOptions(int level, int optname, const void* optval, u32 optlen) override;
     int GetSocketOptions(int level, int optname, void* optval, u32* optlen) override;
@@ -144,8 +150,8 @@ struct P2PSocket : public Socket {
     int GetSocketAddress(OrbisNetSockaddr* name, u32* namelen) override;
     int GetPeerName(OrbisNetSockaddr* addr, u32* namelen) override;
     int fstat(Libraries::Kernel::OrbisKernelStat* stat) override;
-    std::optional<net_socket> Native() override {
-        return {};
+    net_socket Native() override {
+        return sock;
     }
 };
 
@@ -173,7 +179,7 @@ struct UnixSocket : public Socket {
     int GetSocketAddress(OrbisNetSockaddr* name, u32* namelen) override;
     int GetPeerName(OrbisNetSockaddr* addr, u32* namelen) override;
     int fstat(Libraries::Kernel::OrbisKernelStat* stat) override;
-    std::optional<net_socket> Native() override {
+    net_socket Native() override {
         return sock;
     }
 };

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2025 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <functional>
 #include "common/config.h"
 #include "common/logging/log.h"
 #include "core/libraries/error_codes.h"
@@ -11,12 +12,28 @@
 
 namespace Libraries::Np::NpManager {
 
+struct OrbisNpRequest {
+    OrbisNpRequestState state{OrbisNpRequestState::Ready};
+    OrbisNpRequestSync sync{OrbisNpRequestSync::Sync};
+    std::optional<std::function<s32()>> async_promise{};
+    s32 Process() {
+        if (sync == OrbisNpRequestSync::Sync) {
+            return (*async_promise)();
+        } else {
+            return ORBIS_OK;
+        }
+    }
+    OrbisNpRequest(OrbisNpRequestSync sync) : sync(sync) {}
+    operator OrbisNpRequestState() {
+        return state;
+    }
+};
+
 static bool g_signed_in = false;
 static s32 g_active_requests = 0;
-static std::vector<OrbisNpRequestState> g_requests;
+static std::vector<OrbisNpRequest> g_requests;
 
-s32 PS4_SYSV_ABI sceNpCreateRequest() {
-    LOG_DEBUG(Lib_NpManager, "called");
+static s32 createRequest(OrbisNpRequestSync sync) {
     if (g_active_requests == ORBIS_NP_MANAGER_REQUEST_LIMIT) {
         return ORBIS_NP_ERROR_REQUEST_MAX;
     }
@@ -24,9 +41,9 @@ s32 PS4_SYSV_ABI sceNpCreateRequest() {
     s32 req_index = 0;
     while (req_index < g_requests.size()) {
         // Find first nonexistant request
-        if (g_requests[req_index] == OrbisNpRequestState::None) {
+        if (g_requests[req_index].state == OrbisNpRequestState::None) {
             // There is no request at this index, set the index to ready then break.
-            g_requests[req_index] = OrbisNpRequestState::Ready;
+            g_requests[req_index].state = OrbisNpRequestState::Ready;
             break;
         }
         req_index++;
@@ -34,12 +51,22 @@ s32 PS4_SYSV_ABI sceNpCreateRequest() {
 
     if (req_index == g_requests.size()) {
         // There are no requests to replace.
-        g_requests.emplace_back(OrbisNpRequestState::Ready);
+        g_requests.emplace_back(sync);
     }
 
     // Offset by one, first returned ID is 0x20000001
     g_active_requests++;
     return req_index + ORBIS_NP_MANAGER_REQUEST_ID_OFFSET + 1;
+}
+
+s32 PS4_SYSV_ABI sceNpCreateRequest() {
+    LOG_DEBUG(Lib_NpManager, "called");
+    return createRequest(OrbisNpRequestSync::Sync);
+}
+
+s32 PS4_SYSV_ABI sceNpCreateAsyncRequest(const OrbisNpCreateAsyncRequestParams* params) {
+    LOG_ERROR(Lib_NpManager, "(STUBBED) called");
+    return createRequest(OrbisNpRequestSync::Async);
 }
 
 s32 PS4_SYSV_ABI sceNpCheckNpAvailability(s32 req_id, OrbisNpOnlineId* online_id) {
@@ -53,17 +80,20 @@ s32 PS4_SYSV_ABI sceNpCheckNpAvailability(s32 req_id, OrbisNpOnlineId* online_id
         return ORBIS_NP_ERROR_REQUEST_NOT_FOUND;
     }
 
-    if (g_requests[req_index] == OrbisNpRequestState::Complete) {
+    auto& req = g_requests[req_index];
+
+    if (req == OrbisNpRequestState::Complete) {
         return ORBIS_NP_ERROR_INVALID_ARGUMENT;
     }
 
-    g_requests[req_index] = OrbisNpRequestState::Complete;
-    if (!g_signed_in) {
-        return ORBIS_NP_ERROR_SIGNED_OUT;
-    }
-
     LOG_ERROR(Lib_NpManager, "(STUBBED) called, req_id = {:#x}", req_id);
-    return ORBIS_OK;
+
+    req.async_promise = [&req] {
+        req.state = OrbisNpRequestState::Complete;
+        return g_signed_in ? ORBIS_OK : ORBIS_NP_ERROR_SIGNED_OUT;
+    };
+
+    return req.Process();
 }
 
 s32 PS4_SYSV_ABI sceNpCheckNpAvailabilityA(s32 req_id,
@@ -78,7 +108,7 @@ s32 PS4_SYSV_ABI sceNpCheckNpAvailabilityA(s32 req_id,
         return ORBIS_NP_ERROR_INVALID_ARGUMENT;
     }
 
-    g_requests[req_index] = OrbisNpRequestState::Complete;
+    g_requests[req_index].state = OrbisNpRequestState::Complete;
     if (!g_signed_in) {
         return ORBIS_NP_ERROR_SIGNED_OUT;
     }
@@ -99,12 +129,19 @@ s32 PS4_SYSV_ABI sceNpCheckNpReachability(s32 req_id,
         return ORBIS_NP_ERROR_INVALID_ARGUMENT;
     }
 
-    g_requests[req_index] = OrbisNpRequestState::Complete;
+    g_requests[req_index].state = OrbisNpRequestState::Complete;
     if (!g_signed_in) {
         return ORBIS_NP_ERROR_SIGNED_OUT;
     }
 
     LOG_ERROR(Lib_NpManager, "(STUBBED) called, req_id = {:#x}", req_id);
+    return ORBIS_OK;
+}
+
+s32 PS4_SYSV_ABI sceNpCheckPlus(s32 req_id, const void* param, bool* result) {
+    LOG_ERROR(Lib_NpManager, "(STUBBED) called, req_id = {:#x}", req_id);
+
+    *result = true;
     return ORBIS_OK;
 }
 
@@ -124,7 +161,7 @@ s32 PS4_SYSV_ABI sceNpGetAccountLanguage(s32 req_id, OrbisNpOnlineId* online_id,
         return ORBIS_NP_ERROR_INVALID_ARGUMENT;
     }
 
-    g_requests[req_index] = OrbisNpRequestState::Complete;
+    g_requests[req_index].state = OrbisNpRequestState::Complete;
     if (!g_signed_in) {
         return ORBIS_NP_ERROR_SIGNED_OUT;
     }
@@ -151,7 +188,7 @@ s32 PS4_SYSV_ABI sceNpGetAccountLanguageA(s32 req_id,
         return ORBIS_NP_ERROR_INVALID_ARGUMENT;
     }
 
-    g_requests[req_index] = OrbisNpRequestState::Complete;
+    g_requests[req_index].state = OrbisNpRequestState::Complete;
     if (!g_signed_in) {
         return ORBIS_NP_ERROR_SIGNED_OUT;
     }
@@ -177,7 +214,7 @@ s32 PS4_SYSV_ABI sceNpGetParentalControlInfo(s32 req_id, OrbisNpOnlineId* online
         return ORBIS_NP_ERROR_INVALID_ARGUMENT;
     }
 
-    g_requests[req_index] = OrbisNpRequestState::Complete;
+    g_requests[req_index].state = OrbisNpRequestState::Complete;
     if (!g_signed_in) {
         return ORBIS_NP_ERROR_SIGNED_OUT;
     }
@@ -206,7 +243,7 @@ sceNpGetParentalControlInfoA(s32 req_id, Libraries::UserService::OrbisUserServic
         return ORBIS_NP_ERROR_INVALID_ARGUMENT;
     }
 
-    g_requests[req_index] = OrbisNpRequestState::Complete;
+    g_requests[req_index].state = OrbisNpRequestState::Complete;
     if (!g_signed_in) {
         return ORBIS_NP_ERROR_SIGNED_OUT;
     }
@@ -227,7 +264,8 @@ s32 PS4_SYSV_ABI sceNpDeleteRequest(s32 req_id) {
     }
 
     g_active_requests--;
-    g_requests[req_index] = OrbisNpRequestState::None;
+    g_requests[req_index].state = OrbisNpRequestState::None;
+    g_requests[req_index].async_promise = std::nullopt;
     return ORBIS_OK;
 }
 
@@ -399,6 +437,22 @@ s32 PS4_SYSV_ABI sceNpHasSignedUp(Libraries::UserService::OrbisUserServiceUserId
     return ORBIS_OK;
 }
 
+s32 PS4_SYSV_ABI sceNpPollAsync(s32 req_id, s32* result) {
+    LOG_ERROR(Lib_NpManager, "(STUBBED) called req_id = {:#x}", req_id);
+    if (result == nullptr) {
+        return ORBIS_NP_ERROR_INVALID_ARGUMENT;
+    }
+    s32 req_index = req_id - ORBIS_NP_MANAGER_REQUEST_ID_OFFSET - 1;
+    if (g_active_requests == 0 || g_requests.size() <= req_index ||
+        g_requests[req_index] == OrbisNpRequestState::None) {
+        return ORBIS_NP_ERROR_REQUEST_NOT_FOUND;
+    }
+
+    *result = 1;
+
+    return ORBIS_NP_POLL_ASYNC_FINISHED;
+}
+
 struct NpStateCallbackForNpToolkit {
     OrbisNpStateCallbackForNpToolkit func;
     void* userdata;
@@ -407,12 +461,12 @@ struct NpStateCallbackForNpToolkit {
 NpStateCallbackForNpToolkit NpStateCbForNp;
 
 s32 PS4_SYSV_ABI sceNpCheckCallback() {
-    LOG_DEBUG(Lib_NpManager, "(STUBBED) called");
+    LOG_TRACE(Lib_NpManager, "(STUBBED) called");
     return ORBIS_OK;
 }
 
 s32 PS4_SYSV_ABI sceNpCheckCallbackForLib() {
-    LOG_DEBUG(Lib_NpManager, "(STUBBED) called");
+    LOG_TRACE(Lib_NpManager, "(STUBBED) called");
     return ORBIS_OK;
 }
 
@@ -425,13 +479,28 @@ s32 PS4_SYSV_ABI sceNpRegisterStateCallbackForToolkit(OrbisNpStateCallbackForNpT
     return id;
 }
 
+s32 PS4_SYSV_ABI sceNpBandwidthTestInitStart() {
+    LOG_DEBUG(Lib_NpManager, "(STUBBED) called");
+    static s32 id = 0;
+    return id++;
+}
+
+s32 PS4_SYSV_ABI sceNpBandwidthTestGetStatus(s32 ctxId, s32* status) {
+    LOG_DEBUG(Lib_NpManager, "(STUBBED) called");
+
+    *status = 2;
+    return ORBIS_OK;
+}
+
 void RegisterLib(Core::Loader::SymbolsResolver* sym) {
     g_signed_in = Config::getPSNSignedIn();
 
     LIB_FUNCTION("GpLQDNKICac", "libSceNpManager", 1, "libSceNpManager", sceNpCreateRequest);
+    LIB_FUNCTION("eiqMCt9UshI", "libSceNpManager", 1, "libSceNpManager", sceNpCreateAsyncRequest);
     LIB_FUNCTION("2rsFmlGWleQ", "libSceNpManager", 1, "libSceNpManager", sceNpCheckNpAvailability);
     LIB_FUNCTION("8Z2Jc5GvGDI", "libSceNpManager", 1, "libSceNpManager", sceNpCheckNpAvailabilityA);
     LIB_FUNCTION("KfGZg2y73oM", "libSceNpManager", 1, "libSceNpManager", sceNpCheckNpReachability);
+    LIB_FUNCTION("r6MyYJkryz8", "libSceNpManager", 1, "libSceNpManager", sceNpCheckPlus);
     LIB_FUNCTION("KZ1Mj9yEGYc", "libSceNpManager", 1, "libSceNpManager", sceNpGetAccountLanguage);
     LIB_FUNCTION("TPMbgIxvog0", "libSceNpManager", 1, "libSceNpManager", sceNpGetAccountLanguageA);
     LIB_FUNCTION("ilwLM4zOmu4", "libSceNpManager", 1, "libSceNpManager",
@@ -451,6 +520,9 @@ void RegisterLib(Core::Loader::SymbolsResolver* sym) {
                  sceNpGetGamePresenceStatusA);
     LIB_FUNCTION("e-ZuhGEoeC4", "libSceNpManager", 1, "libSceNpManager",
                  sceNpGetNpReachabilityState);
+    LIB_FUNCTION("uqcPJLWL08M", "libSceNpManager", 1, "libSceNpManager", sceNpPollAsync);
+    LIB_FUNCTION("jktww3yJXnc", "libSceNpUtility", 1, "libSceNpUtility", sceNpBandwidthTestInitStart);
+    LIB_FUNCTION("BYIZGKm6bO4", "libSceNpUtility", 1, "libSceNpUtility", sceNpBandwidthTestGetStatus);
 
     LIB_FUNCTION("a8R9-75u4iM", "libSceNpManager", 1, "libSceNpManager", sceNpGetAccountId);
     LIB_FUNCTION("rbknaUjpqWo", "libSceNpManager", 1, "libSceNpManager", sceNpGetAccountIdA);

@@ -4,12 +4,21 @@
 #pragma once
 
 #include "common/types.h"
+#include "core/libraries/np/np_types.h"
+#include "core/libraries/system/userservice.h"
 
 namespace Core::Loader {
 class SymbolsResolver;
 }
 
 namespace Libraries::Np::NpWebApi {
+
+enum class OrbisNpWebApiHttpMethod : u32 {
+    Get,
+    Post,
+    Put,
+    Delete
+};
 
 s32 PS4_SYSV_ABI sceNpWebApiCreateContext();
 s32 PS4_SYSV_ABI sceNpWebApiCreatePushEventFilter();
@@ -30,19 +39,19 @@ s32 PS4_SYSV_ABI sceNpWebApiAddMultipartPart();
 s32 PS4_SYSV_ABI sceNpWebApiCheckTimeout();
 s32 PS4_SYSV_ABI sceNpWebApiClearAllUnusedConnection();
 s32 PS4_SYSV_ABI sceNpWebApiClearUnusedConnection();
-s32 PS4_SYSV_ABI sceNpWebApiCreateContextA();
-s32 PS4_SYSV_ABI sceNpWebApiCreateExtdPushEventFilter();
-s32 PS4_SYSV_ABI sceNpWebApiCreateHandle();
+s32 PS4_SYSV_ABI sceNpWebApiCreateContextA(s32 libCtxId, Libraries::UserService::OrbisUserServiceUserId userId);
+s32 PS4_SYSV_ABI sceNpWebApiCreateExtdPushEventFilter(s32 libCtxId, s32 handleId, const char* serviceName, OrbisNpServiceLabel serviceLabel, const void* params, size_t paramsNum);
+s32 PS4_SYSV_ABI sceNpWebApiCreateHandle(s32 libCtxId);
 s32 PS4_SYSV_ABI sceNpWebApiCreateMultipartRequest();
-s32 PS4_SYSV_ABI sceNpWebApiCreateRequest();
+s32 PS4_SYSV_ABI sceNpWebApiCreateRequest(s32 userCtxId, const char* api, const char* path, OrbisNpWebApiHttpMethod method, const void* params, s64* reqId);
 s32 PS4_SYSV_ABI sceNpWebApiDeleteContext();
 s32 PS4_SYSV_ABI sceNpWebApiDeleteExtdPushEventFilter();
-s32 PS4_SYSV_ABI sceNpWebApiDeleteHandle();
-s32 PS4_SYSV_ABI sceNpWebApiDeleteRequest();
+s32 PS4_SYSV_ABI sceNpWebApiDeleteHandle(s32 libCtxId, s32 handleId);
+s32 PS4_SYSV_ABI sceNpWebApiDeleteRequest(s64 reqId);
 s32 PS4_SYSV_ABI sceNpWebApiGetConnectionStats();
 s32 PS4_SYSV_ABI sceNpWebApiGetErrorCode();
 s32 PS4_SYSV_ABI sceNpWebApiGetHttpResponseHeaderValue();
-s32 PS4_SYSV_ABI sceNpWebApiGetHttpResponseHeaderValueLength();
+s32 PS4_SYSV_ABI sceNpWebApiGetHttpResponseHeaderValueLength(s64 reqId, const char* field, s64* len);
 s32 PS4_SYSV_ABI sceNpWebApiGetHttpStatusCode();
 s32 PS4_SYSV_ABI sceNpWebApiGetMemoryPoolStats();
 s32 PS4_SYSV_ABI sceNpWebApiInitialize();
@@ -53,12 +62,12 @@ s32 PS4_SYSV_ABI sceNpWebApiIntCreateServicePushEventFilter();
 s32 PS4_SYSV_ABI sceNpWebApiIntInitialize();
 s32 PS4_SYSV_ABI sceNpWebApiIntRegisterServicePushEventCallback();
 s32 PS4_SYSV_ABI sceNpWebApiIntRegisterServicePushEventCallbackA();
-s32 PS4_SYSV_ABI sceNpWebApiReadData();
+s32 PS4_SYSV_ABI sceNpWebApiReadData(s64 reqId, void* data, s64 len);
 s32 PS4_SYSV_ABI sceNpWebApiRegisterExtdPushEventCallbackA();
 s32 PS4_SYSV_ABI sceNpWebApiSendMultipartRequest();
 s32 PS4_SYSV_ABI sceNpWebApiSendMultipartRequest2();
 s32 PS4_SYSV_ABI sceNpWebApiSendRequest();
-s32 PS4_SYSV_ABI sceNpWebApiSendRequest2();
+// s32 PS4_SYSV_ABI sceNpWebApiSendRequest2(s64 reqId, const void* data, size_t len, void* response);
 s32 PS4_SYSV_ABI sceNpWebApiSetHandleTimeout();
 s32 PS4_SYSV_ABI sceNpWebApiSetMaxConnection();
 s32 PS4_SYSV_ABI sceNpWebApiSetMultipartContentType();

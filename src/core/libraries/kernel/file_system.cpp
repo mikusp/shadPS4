@@ -1315,8 +1315,7 @@ s32 PS4_SYSV_ABI posix_select(s32 nfds, fd_set* readfds, fd_set* writefds, fd_se
                     return -1;
                 case Core::FileSys::FileType::Socket: {
                     auto sock = file->socket->Native();
-                    // until P2P sockets contain a proper socket
-                    return sock ? static_cast<s32>(*sock) : -1;
+                    return sock;
                 }
                 default:
                     UNREACHABLE();

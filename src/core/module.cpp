@@ -114,7 +114,7 @@ void Module::LoadModuleToMemory(u32& max_tls_index) {
     void** out_addr = reinterpret_cast<void**>(&base_virtual_addr);
     memory->MapMemory(out_addr, ModuleLoadBase, aligned_base_size + TrampolineSize,
                       MemoryProt::CpuReadWrite, MemoryMapFlags::NoFlags, VMAType::Code, name, true);
-    LOG_INFO(Core_Linker, "Loading module {} to {}", name, fmt::ptr(*out_addr));
+    LOG_ERROR(Core_Linker, "Loading module {} to {}", name, fmt::ptr(*out_addr));
 
 #ifdef ARCH_X86_64
     // Initialize trampoline generator.
@@ -123,7 +123,7 @@ void Module::LoadModuleToMemory(u32& max_tls_index) {
 #endif
 
     LOG_INFO(Core_Linker, "======== Load Module to Memory ========");
-    LOG_INFO(Core_Linker, "base_virtual_addr ......: {:#018x}", base_virtual_addr);
+    LOG_ERROR(Core_Linker, "base_virtual_addr ......: {:#018x}", base_virtual_addr);
     LOG_INFO(Core_Linker, "base_size ..............: {:#018x}", base_size);
     LOG_INFO(Core_Linker, "aligned_base_size ......: {:#018x}", aligned_base_size);
 

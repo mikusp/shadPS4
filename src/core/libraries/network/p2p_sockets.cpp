@@ -9,6 +9,29 @@
 
 namespace Libraries::Net {
 
+static int StripP2P(int type) {
+    switch (type) {
+    case ORBIS_NET_SOCK_DGRAM_P2P:
+        return SOCK_DGRAM;
+    default:
+        UNREACHABLE_MSG("unsupported type {}", type);
+    }
+}
+
+P2PSocket::P2PSocket(int domain, int type, int protocol) : Socket(domain, type, protocol) {
+    sock = socket(domain, StripP2P(type), protocol);
+    socket_type = type;
+}
+
+
+bool P2PSocket::IsValid() const {
+#ifdef _WIN32
+    return sock != INVALID_SOCKET;
+#else
+    return sock != -1;
+#endif
+}
+
 int P2PSocket::Close() {
     LOG_ERROR(Lib_Net, "(STUBBED) called");
     return 0;
@@ -25,14 +48,16 @@ int P2PSocket::GetSocketOptions(int level, int optname, void* optval, u32* optle
 }
 
 int P2PSocket::Bind(const OrbisNetSockaddr* addr, u32 addrlen) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
+    auto sockaddr = (const OrbisNetSockaddrIn*)addr;
+    
+    LOG_ERROR(Lib_Net, "port = {}, addr = {}, vport = {}", sockaddr->sin_port, inet_ntoa((in_addr)(sockaddr->sin_addr)), sockaddr->sin_vport);
     return 0;
 }
 
 int P2PSocket::Listen(int backlog) {
     LOG_ERROR(Lib_Net, "(STUBBED) called");
     return 0;
-}
+} 
 
 int P2PSocket::SendMessage(const OrbisNetMsghdr* msg, int flags) {
     LOG_ERROR(Lib_Net, "(STUBBED) called");

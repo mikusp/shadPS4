@@ -29,6 +29,8 @@ u32 PS4_SYSV_ABI getEvent(sceCompanionUtilContext* ctx, sceCompanionUtilEvent* o
 }
 
 s32 PS4_SYSV_ABI sceCompanionUtilGetEvent(sceCompanionUtilEvent* outEvent) {
+    return ORBIS_COMPANION_UTIL_NO_EVENT;
+
     sceCompanionUtilContext* ctx = nullptr;
     u32 ret = getEvent(ctx, outEvent, 1);
 

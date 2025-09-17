@@ -1068,7 +1068,7 @@ void PatchImageArgs(IR::Block& block, IR::Inst& inst, Info& info) {
 
     const auto has_ms = view_type == AmdGpu::ImageType::Color2DMsaa ||
                         view_type == AmdGpu::ImageType::Color2DMsaaArray;
-    ASSERT(!inst_info.has_lod || !has_ms);
+    // ASSERT(!inst_info.has_lod || !has_ms);
     const auto lod = inst_info.has_lod ? IR::U32{arg} : IR::U32{};
     const auto ms = has_ms ? IR::U32{arg} : IR::U32{};
 

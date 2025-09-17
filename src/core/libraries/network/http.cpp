@@ -558,8 +558,20 @@ int PS4_SYSV_ABI sceHttpUriCopy() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceHttpUriEscape() {
-    LOG_ERROR(Lib_Http, "(STUBBED) called");
+int PS4_SYSV_ABI sceHttpUriEscape(char* out, u64* required, u64 outLen, const char* uri) {
+    LOG_ERROR(Lib_Http, "(STUBBED) called outLen = {} uri = {}", outLen, uri);
+    if (out == nullptr && required == nullptr) {
+        return ORBIS_HTTP_ERROR_INVALID_VALUE;
+    }
+    if (required != nullptr) {
+        *required = strlen(uri);
+    }
+    if (strlen(uri) < outLen) {
+        return ORBIS_HTTP_ERROR_OUT_OF_MEMORY;
+    }
+    if (out != nullptr) {
+        strncpy(out, uri, std::min(outLen, strlen(uri)));
+    }
     return ORBIS_OK;
 }
 

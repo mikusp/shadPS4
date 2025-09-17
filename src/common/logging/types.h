@@ -72,6 +72,7 @@ enum class Class : u8 {
     Lib_NpCommon,          ///< The LibSceNpCommon implementation
     Lib_NpAuth,            ///< The LibSceNpAuth implementation
     Lib_NpManager,         ///< The LibSceNpManager implementation
+    Lib_NpMatching2,       ///< The LibSceNpMatching2 implementation
     Lib_NpScore,           ///< The LibSceNpScore implementation
     Lib_NpTrophy,          ///< The LibSceNpTrophy implementation
     Lib_NpWebApi,          ///< The LibSceWebApi implementation
@@ -105,6 +106,8 @@ enum class Class : u8 {
     Lib_Mouse,             ///< The LibSceMouse implementation
     Lib_WebBrowserDialog,  ///< The LibSceWebBrowserDialog implementation
     Lib_NpParty,           ///< The LibSceNpParty implementation
+    Lib_NpTus,             ///< The LibSceNpTus implementation
+    Lib_NpSignaling,       ///< The LibSceNpSignaling implementation
     Lib_Zlib,              ///< The LibSceZlib implementation.
     Lib_Hmd,               ///< The LibSceHmd implementation.
     Lib_HmdSetupDialog,    ///< The LibSceHmdSetupDialog implementation.

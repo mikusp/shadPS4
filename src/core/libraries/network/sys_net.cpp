@@ -10,6 +10,7 @@
 #include "core/file_sys/fs.h"
 #include "net_error.h"
 #include "sockets.h"
+#include "net.h"
 #include "sys_net.h"
 
 namespace Libraries::Net {
@@ -38,6 +39,10 @@ int PS4_SYSV_ABI sys_bind(OrbisNetId s, const OrbisNetSockaddr* addr, u32 addrle
     if (!file) {
         *Libraries::Kernel::__Error() = ORBIS_NET_EBADF;
         LOG_ERROR(Lib_Net, "socket id is invalid = {}", s);
+        return -1;
+    }
+    if (!addr) {
+        *Libraries::Kernel::__Error() = ORBIS_NET_EINVAL;
         return -1;
     }
     LOG_DEBUG(Lib_Net, "s = {} ({})", s, file->m_guest_name);
@@ -171,8 +176,8 @@ int PS4_SYSV_ABI sys_setsockopt(OrbisNetId s, int level, int optname, const void
             return std::string_view{"unknown"};
         }
     }();
-    LOG_DEBUG(Lib_Net, "s = {} ({}), level = {}, optname = {}", s, file->m_guest_name,
-              NameOf((OrbisNetProtocol)level), name);
+    LOG_DEBUG(Lib_Net, "s = {} ({}), level = {}, optname = {} optlen = {}", s, file->m_guest_name,
+              NameOf((OrbisNetProtocol)level), name, optlen);
     int returncode = file->socket->SetSocketOptions(level, optname, optval, optlen);
     if (returncode >= 0) {
         return returncode;
@@ -204,7 +209,7 @@ int PS4_SYSV_ABI sys_socketex(const char* name, int family, int type, int protoc
         break;
     case ORBIS_NET_SOCK_DGRAM_P2P:
     case ORBIS_NET_SOCK_STREAM_P2P:
-        socket = std::make_shared<P2PSocket>(family, type, protocol);
+        socket = std::make_shared<P2PSocket>(ConvertFamilies(family), type, protocol);
         break;
     default:
         UNREACHABLE_MSG("Unknown type {}", type);

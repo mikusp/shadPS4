@@ -384,7 +384,7 @@ int NetUtilInternal::ResolveHostname(const char* hostname, Libraries::Net::Orbis
     auto ret = ORBIS_OK;
     if (gai_result != 0) {
         // handle more errors
-        LOG_ERROR(Lib_Net, "address resolution for {} failed: {}", hostname, gai_result);
+        LOG_ERROR(Lib_Net, "address resolution for {} failed: {}", hostname, gai_strerror(gai_result));
         ret = ORBIS_NET_ERETURN;
     } else {
         ASSERT(info && info->ai_addr);

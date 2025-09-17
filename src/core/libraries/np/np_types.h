@@ -11,6 +11,8 @@ namespace Libraries::Np {
 
 constexpr s32 ORBIS_NP_ONLINEID_MAX_LENGTH = 16;
 
+using OrbisNpServiceLabel = s32;
+
 struct OrbisNpOnlineId {
     char data[ORBIS_NP_ONLINEID_MAX_LENGTH];
     s8 term;

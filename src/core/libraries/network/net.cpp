@@ -36,7 +36,7 @@ static thread_local int32_t net_errno = 0;
 
 static bool g_isNetInitialized = true; // TODO init it properly
 
-static int ConvertFamilies(int family) {
+int ConvertFamilies(int family) {
     switch (family) {
     case ORBIS_NET_AF_INET:
         return AF_INET;
@@ -632,7 +632,7 @@ int PS4_SYSV_ABI sceNetEpollControl(OrbisNetId epollid, OrbisNetEpollFlag op, Or
                 magic_enum::enum_name(op), id);
 
     auto find_id = [&](OrbisNetId id) {
-        return std::ranges::find_if(epoll->events, [&](const auto& el) { return el.first == id; });
+        return std::ranges::find_if(epoll->events, [&](auto& el) { return el.first == id; });
     };
 
     switch (op) {
@@ -657,7 +657,7 @@ int PS4_SYSV_ABI sceNetEpollControl(OrbisNetId epollid, OrbisNetEpollFlag op, Or
         case Core::FileSys::FileType::Socket: {
             epoll_event native_event = {.events = ConvertEpollEventsIn(event->events),
                                         .data = {.fd = id}};
-            ASSERT(epoll_ctl(epoll->epoll_fd, EPOLL_CTL_ADD, *file->socket->Native(),
+            ASSERT(epoll_ctl(epoll->epoll_fd, EPOLL_CTL_ADD, file->socket->Native(),
                              &native_event) == 0);
             epoll->events.emplace_back(id, *event);
             break;
@@ -672,14 +672,39 @@ int PS4_SYSV_ABI sceNetEpollControl(OrbisNetId epollid, OrbisNetEpollFlag op, Or
             break;
         }
         }
+        break;
     }
     case ORBIS_NET_EPOLL_CTL_MOD: {
         if (event == nullptr) {
             *sceNetErrnoLoc() = ORBIS_NET_EINVAL;
             return ORBIS_NET_ERROR_EINVAL;
         }
+        const auto it = find_id(id);
+        if (it == epoll->events.end()) {
+            *sceNetErrnoLoc() = ORBIS_NET_EBADF;
+            return ORBIS_NET_ERROR_EBADF;
+        }
 
-        UNREACHABLE();
+        auto file = FDTable::Instance()->GetFile(id);
+        if (!file) {
+            *sceNetErrnoLoc() = ORBIS_NET_EBADF;
+            LOG_ERROR(Lib_Net, "file id is invalid = {}", id);
+            return ORBIS_NET_ERROR_EBADF;
+        }
+
+        switch (file->type) {
+        case Core::FileSys::FileType::Socket: {
+            epoll_event native_event = {.events = ConvertEpollEventsIn(event->events),
+                                        .data = {.fd = id}};
+            ASSERT(epoll_ctl(epoll->epoll_fd, EPOLL_CTL_MOD, file->socket->Native(),
+                             &native_event) == 0);
+            *it = {id,*event};
+            break;
+        }
+        default:
+            LOG_ERROR(Lib_Net, "file type {} ({}) passed", magic_enum::enum_name(file->type.load()), file->m_guest_name);
+            break;
+        }
         break;
     }
     case ORBIS_NET_EPOLL_CTL_DEL: {
@@ -694,14 +719,28 @@ int PS4_SYSV_ABI sceNetEpollControl(OrbisNetId epollid, OrbisNetEpollFlag op, Or
             return ORBIS_NET_ERROR_EBADF;
         }
 
-        auto file = FDTable::Instance()->GetSocket(id);
+        auto file = FDTable::Instance()->GetFile(id);
         if (!file) {
             *sceNetErrnoLoc() = ORBIS_NET_EBADF;
-            LOG_ERROR(Lib_Net, "socket id is invalid = {}", id);
+            LOG_ERROR(Lib_Net, "file id is invalid = {}", id);
             return ORBIS_NET_ERROR_EBADF;
         }
-        ASSERT(epoll_ctl(epoll->epoll_fd, EPOLL_CTL_DEL, *file->socket->Native(), nullptr) == 0);
-        epoll->events.erase(it);
+
+        switch (file->type) {
+        case Core::FileSys::FileType::Socket: {
+            ASSERT(epoll_ctl(epoll->epoll_fd, EPOLL_CTL_DEL, file->socket->Native(), nullptr) == 0);
+            epoll->events.erase(it);
+            break;
+        }
+        case Core::FileSys::FileType::Resolver: {
+            std::erase(epoll->async_resolutions, id);
+            epoll->events.erase(it);
+            break;
+        }
+        default:
+            LOG_ERROR(Lib_Net, "file type {} ({}) passed", magic_enum::enum_name(file->type.load()), file->m_guest_name);
+            break;
+        }
         break;
     }
     default:
@@ -1329,12 +1368,13 @@ int PS4_SYSV_ABI sceNetResolverCreate(const char* name, int poolid, int flags) {
 }
 
 int PS4_SYSV_ABI sceNetResolverDestroy(OrbisNetId resolverid) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
+    LOG_ERROR(Lib_Net, "(STUBBED) called rid = {}", resolverid);
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceNetResolverGetError() {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
+int PS4_SYSV_ABI sceNetResolverGetError(OrbisNetId resolverid, s32* status) {
+    LOG_ERROR(Lib_Net, "(STUBBED) called rid = {}", resolverid);
+    *status = 0;
     return ORBIS_OK;
 }
 

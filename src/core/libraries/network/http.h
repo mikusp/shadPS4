@@ -136,7 +136,7 @@ int PS4_SYSV_ABI sceHttpTrySetNonblock();
 int PS4_SYSV_ABI sceHttpUnsetEpoll();
 int PS4_SYSV_ABI sceHttpUriBuild();
 int PS4_SYSV_ABI sceHttpUriCopy();
-int PS4_SYSV_ABI sceHttpUriEscape();
+int PS4_SYSV_ABI sceHttpUriEscape(char* out, u64* required, u64 outLen, const char* uri);
 int PS4_SYSV_ABI sceHttpUriMerge();
 int PS4_SYSV_ABI sceHttpUriParse(OrbisHttpUriElement* out, const char* srcUri, void* pool,
                                  size_t* require, size_t prepare);
