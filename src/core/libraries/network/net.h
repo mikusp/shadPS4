@@ -63,7 +63,8 @@ constexpr std::string_view NameOf(OrbisNetProtocol p) {
     case ORBIS_NET_SOL_SOCKET:
         return "ORBIS_NET_SOL_SOCKET";
     default:
-        UNREACHABLE_MSG("{}", (u32)p);
+        return "UNK";
+        // UNREACHABLE_MSG("{}", (u32)p);
     }
 }
 
@@ -164,7 +165,8 @@ constexpr std::string_view NameOf(OrbisNetSocketSoOption o) {
     case ORBIS_NET_SO_PRIORITY:
         return "ORBIS_NET_SO_PRIORITY";
     default:
-        UNREACHABLE_MSG("{}", (u32)o);
+        return "UNK";
+        // UNREACHABLE_MSG("{}", (u32)o);
     }
 }
 

@@ -457,11 +457,11 @@ int PosixSocket::GetSocketAddress(OrbisNetSockaddr* name, u32* namelen) {
 
 #define CASE_SETSOCKOPT_VALUE(opt, value)                                                          \
     case opt:                                                                                      \
-        if (optlen != sizeof(*value)) {                                                            \
+        if (optlen < sizeof(*value)) {                                                             \
             *Libraries::Kernel::__Error() = ORBIS_NET_EFAULT;                                      \
             return -1;                                                                             \
         }                                                                                          \
-        memcpy(value, optval, optlen);                                                             \
+        memcpy(value, optval, sizeof(*value));                                                     \
         return 0
 
 int PosixSocket::SetSocketOptions(int level, int optname, const void* optval, u32 optlen) {
@@ -581,7 +581,7 @@ int PosixSocket::SetSocketOptions(int level, int optname, const void* optval, u3
         }
     }
 
-    UNREACHABLE_MSG("Unknown level ={} optname ={}", level, optname);
+    // UNREACHABLE_MSG("Unknown level ={} optname ={}", level, optname);
     return 0;
 }
 

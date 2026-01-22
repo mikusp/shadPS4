@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <mutex>
+#include <variant>
 
 #include "common/config.h"
 #include "common/logging/log.h"
@@ -681,15 +682,73 @@ struct NpStateCallbackForNpToolkit {
 };
 
 NpStateCallbackForNpToolkit NpStateCbForNp;
+bool newCallback = false;
+
+struct NpStateCallback {
+    std::variant<OrbisNpStateCallback, OrbisNpStateCallbackA> func;
+    void* userdata;
+};
+
+NpStateCallback NpStateCb;
 
 s32 PS4_SYSV_ABI sceNpCheckCallback() {
     LOG_DEBUG(Lib_NpManager, "(STUBBED) called");
+
+    if (newCallback) {
+        newCallback = false;
+        if (auto f = std::get_if<OrbisNpStateCallback>(&NpStateCb.func)) {
+            OrbisNpId np_id;
+            memset(&np_id, 0, sizeof(OrbisNpId));
+            strncpy(np_id.handle.data, Config::getUserName().c_str(), sizeof(np_id.handle.data));
+            (*f)(1, g_signed_in ? OrbisNpState::SignedIn : OrbisNpState::SignedOut, &np_id,
+                 NpStateCb.userdata);
+        } else if (auto f = std::get_if<OrbisNpStateCallbackA>(&NpStateCb.func)) {
+            (*f)(1, g_signed_in ? OrbisNpState::SignedIn : OrbisNpState::SignedOut,
+                 NpStateCb.userdata);
+        }
+    }
     return ORBIS_OK;
 }
 
 s32 PS4_SYSV_ABI sceNpCheckCallbackForLib() {
     LOG_DEBUG(Lib_NpManager, "(STUBBED) called");
     return ORBIS_OK;
+}
+
+s32 PS4_SYSV_ABI sceNpRegisterStateCallback(OrbisNpStateCallback callback, void* userdata) {
+    static s32 id = 0;
+    LOG_ERROR(Lib_NpManager, "(STUBBED) called, userdata = {}", userdata);
+    NpStateCb.func = callback;
+    NpStateCb.userdata = userdata;
+    newCallback = true;
+
+    return id;
+}
+
+s32 PS4_SYSV_ABI sceNpRegisterStateCallbackA(OrbisNpStateCallbackA callback, void* userdata) {
+    static s32 id = 0;
+    LOG_ERROR(Lib_NpManager, "(STUBBED) called, userdata = {}", userdata);
+    NpStateCb.func = callback;
+    NpStateCb.userdata = userdata;
+    newCallback = true;
+
+    return id;
+}
+
+struct NpReachabilityStateCallback {
+    OrbisNpReachabilityStateCallback func;
+    void* userdata;
+};
+
+NpReachabilityStateCallback NpReachabilityCb;
+
+s32 PS4_SYSV_ABI sceNpRegisterNpReachabilityStateCallback(OrbisNpReachabilityStateCallback callback,
+                                                          void* userdata) {
+    static s32 id = 0;
+    LOG_ERROR(Lib_NpManager, "(STUBBED) called");
+    NpReachabilityCb.func = callback;
+    NpReachabilityCb.userdata = userdata;
+    return id;
 }
 
 s32 PS4_SYSV_ABI sceNpRegisterStateCallbackForToolkit(OrbisNpStateCallbackForNpToolkit callback,
@@ -742,6 +801,10 @@ void RegisterLib(Core::Loader::SymbolsResolver* sym) {
     LIB_FUNCTION("Oad3rvY-NJQ", "libSceNpManager", 1, "libSceNpManager", sceNpHasSignedUp);
     LIB_FUNCTION("3Zl8BePTh9Y", "libSceNpManager", 1, "libSceNpManager", sceNpCheckCallback);
     LIB_FUNCTION("JELHf4xPufo", "libSceNpManager", 1, "libSceNpManager", sceNpCheckCallbackForLib);
+    LIB_FUNCTION("VfRSmPmj8Q8", "libSceNpManager", 1, "libSceNpManager",
+                 sceNpRegisterStateCallback);
+    LIB_FUNCTION("hw5KNqAAels", "libSceNpManager", 1, "libSceNpManager",
+                 sceNpRegisterNpReachabilityStateCallback);
     LIB_FUNCTION("JELHf4xPufo", "libSceNpManagerForToolkit", 1, "libSceNpManager",
                  sceNpCheckCallbackForLib);
     LIB_FUNCTION("0c7HbXRKUt4", "libSceNpManagerForToolkit", 1, "libSceNpManager",

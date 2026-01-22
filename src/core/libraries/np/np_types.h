@@ -43,4 +43,6 @@ struct OrbisNpIdToken {
     u8 padding[7];
 };
 
+using OrbisNpServiceLabel = u32;
+
 }; // namespace Libraries::Np

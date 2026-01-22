@@ -223,7 +223,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(Boost 1.84.0 CONFIG)
 find_package(FFmpeg 5.1.2 MODULE)
 find_package(fmt 10.2.0 CONFIG)
-find_package(glslang 15 CONFIG)
+find_package(glslang 16 CONFIG)
 find_package(half 1.12.0 MODULE)
 find_package(magic_enum 0.9.7 CONFIG)
 find_package(PNG 1.6 MODULE)
@@ -235,13 +235,14 @@ endif()
 find_package(stb MODULE)
 find_package(toml11 4.2.0 CONFIG)
 find_package(tsl-robin-map 1.3.0 CONFIG)
-find_package(VulkanHeaders 1.4.329 CONFIG)
+find_package(VulkanHeaders 1.4.328 CONFIG)
 find_package(VulkanMemoryAllocator 3.1.0 CONFIG)
 find_package(xbyak 7.07 CONFIG)
 find_package(xxHash 0.8.2 MODULE)
 find_package(ZLIB 1.3 MODULE)
 find_package(Zydis 5.0.0 CONFIG)
 find_package(pugixml 1.14 CONFIG)
+find_package(CURL)
 if (APPLE)
     find_package(date 3.0.1 CONFIG)
     find_package(epoll-shim 3.14 CONFIG)
@@ -345,7 +346,15 @@ set(KERNEL_LIB src/core/libraries/kernel/sync/mutex.cpp
 
 set(NETWORK_LIBS src/core/libraries/network/http.cpp
                  src/core/libraries/network/http.h
+                 src/core/libraries/network/http_connection.h
+                 src/core/libraries/network/http_epoll.cpp
+                 src/core/libraries/network/http_epoll.h
                  src/core/libraries/network/http_error.h
+                 src/core/libraries/network/http_object.h
+                 src/core/libraries/network/http_request.cpp
+                 src/core/libraries/network/http_request.h
+                 src/core/libraries/network/http_table.h
+                 src/core/libraries/network/http_template.h
                  src/core/libraries/network/http2.cpp
                  src/core/libraries/network/http2.h
                  src/core/libraries/network/net.cpp
@@ -581,8 +590,12 @@ set(NP_LIBS src/core/libraries/np/np_error.h
             src/core/libraries/np/np_commerce.h
             src/core/libraries/np/np_manager.cpp
             src/core/libraries/np/np_manager.h
+            src/core/libraries/np/np_matching2.cpp
+            src/core/libraries/np/np_matching2.h
             src/core/libraries/np/np_score.cpp
             src/core/libraries/np/np_score.h
+            src/core/libraries/np/np_signaling.cpp
+            src/core/libraries/np/np_signaling.h
             src/core/libraries/np/np_trophy.cpp
             src/core/libraries/np/np_trophy.h
             src/core/libraries/np/trophy_ui.cpp
@@ -1097,7 +1110,7 @@ create_target_directory_groups(shadps4)
 
 target_link_libraries(shadps4 PRIVATE magic_enum::magic_enum fmt::fmt toml11::toml11 tsl::robin_map xbyak::xbyak Tracy::TracyClient RenderDoc::API FFmpeg::ffmpeg Dear_ImGui gcn half::half ZLIB::ZLIB PNG::PNG)
 target_link_libraries(shadps4 PRIVATE Boost::headers GPUOpen::VulkanMemoryAllocator LibAtrac9 sirit Vulkan::Headers xxHash::xxhash Zydis::Zydis glslang::glslang SDL3::SDL3 SDL3_mixer::SDL3_mixer pugixml::pugixml)
-target_link_libraries(shadps4 PRIVATE stb::headers libusb::usb lfreist-hwinfo::hwinfo nlohmann_json::nlohmann_json miniz fdk-aac)
+target_link_libraries(shadps4 PRIVATE stb::headers libusb::usb lfreist-hwinfo::hwinfo nlohmann_json::nlohmann_json miniz fdk-aac CURL::libcurl)
 
 target_compile_definitions(shadps4 PRIVATE IMGUI_USER_CONFIG="imgui/imgui_config.h")
 target_compile_definitions(Dear_ImGui PRIVATE IMGUI_USER_CONFIG="${PROJECT_SOURCE_DIR}/src/imgui/imgui_config.h")

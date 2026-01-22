@@ -107,7 +107,9 @@ bool ParseFilterRule(Filter& instance, Iterator begin, Iterator end) {
     SUB(Lib, NpCommon)                                                                             \
     SUB(Lib, NpCommerce)                                                                           \
     SUB(Lib, NpManager)                                                                            \
+    SUB(Lib, NpMatching2)                                                                          \
     SUB(Lib, NpScore)                                                                              \
+    SUB(Lib, NpSignaling)                                                                          \
     SUB(Lib, NpTrophy)                                                                             \
     SUB(Lib, NpWebApi)                                                                             \
     SUB(Lib, NpWebApi2)                                                                            \

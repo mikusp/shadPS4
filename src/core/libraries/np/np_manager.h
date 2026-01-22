@@ -23,18 +23,26 @@ enum class OrbisNpState : u32 {
     SignedIn = 2,
 };
 
-using OrbisNpStateCallbackForNpToolkit = PS4_SYSV_ABI void (*)(
-    Libraries::UserService::OrbisUserServiceUserId userId, OrbisNpState state, void* userdata);
-
-enum class OrbisNpGamePresenseStatus {
-    Offline = 0,
-    Online = 1,
-};
-
 enum class OrbisNpReachabilityState {
     Unavailable = 0,
     Available = 1,
     Reachable = 2,
+};
+
+using OrbisNpStateCallback =
+    PS4_SYSV_ABI void (*)(Libraries::UserService::OrbisUserServiceUserId userId, OrbisNpState state,
+                          OrbisNpId* npId, void* userdata);
+using OrbisNpStateCallbackA = PS4_SYSV_ABI void (*)(
+    Libraries::UserService::OrbisUserServiceUserId userId, OrbisNpState state, void* userdata);
+using OrbisNpStateCallbackForNpToolkit = PS4_SYSV_ABI void (*)(
+    Libraries::UserService::OrbisUserServiceUserId userId, OrbisNpState state, void* userdata);
+using OrbisNpReachabilityStateCallback =
+    PS4_SYSV_ABI void (*)(Libraries::UserService::OrbisUserServiceUserId userId,
+                          OrbisNpReachabilityState state, void* userdata);
+
+enum class OrbisNpGamePresenseStatus {
+    Offline = 0,
+    Online = 1,
 };
 
 struct OrbisNpCountryCode {

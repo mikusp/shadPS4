@@ -225,14 +225,18 @@ s32 PS4_SYSV_ABI posix_getpagesize() {
 }
 
 // stubbed on non-devkit consoles
-s32 PS4_SYSV_ABI sceKernelGetGPI() {
+u64 PS4_SYSV_ABI sceKernelGetGPI() {
     LOG_DEBUG(Kernel, "called");
-    return ORBIS_OK;
+    u64 val = 0;
+    val |= (1ull << 31); // switch 31, kIsRunningOnDevKit
+    val |= (1ull << 7);  // switch 7, kShowFpsOverlay
+    val |= (1ull << 4);  // switch 4, kShowMemoryOverlay
+    return ~0ull;
 }
 
 // stubbed on non-devkit consoles
-s32 PS4_SYSV_ABI sceKernelSetGPO() {
-    LOG_DEBUG(Kernel, "called");
+s32 PS4_SYSV_ABI sceKernelSetGPO(u32 leds) {
+    LOG_DEBUG(Kernel, "called leds = {:#0b}", leds);
     return ORBIS_OK;
 }
 

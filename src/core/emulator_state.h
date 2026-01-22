@@ -25,5 +25,5 @@ private:
 
     // state variables
     bool m_running = false;
-    bool m_load_patches_auto = true;
+    bool m_load_patches_auto = false;
 };

@@ -257,7 +257,7 @@ s32 PS4_SYSV_ABI posix_open(const char* filename, s32 flags, u16 mode) {
 s32 PS4_SYSV_ABI sceKernelOpen(const char* path, s32 flags, /* SceKernelMode*/ u16 mode) {
     s32 result = open(path, flags, mode);
     if (result < 0) {
-        LOG_ERROR(Kernel_Fs, "error = {}", *__Error());
+        LOG_ERROR(Kernel_Fs, "error = {}, path = {}", *__Error(), path);
         return ErrnoToSceKernelError(*__Error());
     }
     return result;
