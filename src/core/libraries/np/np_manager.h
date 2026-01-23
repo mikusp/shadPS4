@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <functional>
+
 #include "common/types.h"
 #include "core/libraries/np/np_error.h"
 #include "core/libraries/np/np_types.h"
@@ -87,6 +89,8 @@ struct OrbisNpCreateAsyncRequestParameter {
     s32 thread_priority;
     u8 padding[4];
 };
+
+void RegisterNpCallback(std::string key, std::function<void()> cb);
 
 void RegisterLib(Core::Loader::SymbolsResolver* sym);
 } // namespace Libraries::Np::NpManager
