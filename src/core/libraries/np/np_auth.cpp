@@ -122,9 +122,9 @@ s32 GetAuthorizationCode(s32 req_id, const OrbisNpAuthGetAuthorizationCodeParame
     LOG_ERROR(Lib_NpAuth, "(STUBBED) called, req_id = {:#x}, async = {}", req_id, request.async);
 
     // Not sure what values are expected here, so zeroing these for now.
-    std::memset(auth_code, 0, sizeof(OrbisNpAuthorizationCode));
+    std::strcpy(auth_code->code, "AbCdEf");
     if (issuer_id != nullptr) {
-        *issuer_id = 0;
+        *issuer_id = 0x100;
     }
     return ORBIS_OK;
 }
