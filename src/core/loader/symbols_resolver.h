@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <span>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #include "common/assert.h"
 #include "common/types.h"
@@ -45,7 +46,7 @@ public:
 
     void DebugDump(const std::filesystem::path& file_name);
 
-    std::span<const SymbolRecord> GetSymbols() const {
+    const std::unordered_map<std::string, SymbolRecord> GetSymbols() const {
         return m_symbols;
     }
 
@@ -73,7 +74,7 @@ public:
     }
 
 private:
-    std::vector<SymbolRecord> m_symbols;
+    std::unordered_map<std::string, SymbolRecord> m_symbols;
 };
 
 } // namespace Core::Loader

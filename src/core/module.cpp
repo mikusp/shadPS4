@@ -520,9 +520,10 @@ void* Module::FindByName(std::string_view name) {
     const auto nid_str = StringToNid(name);
     const auto symbols = export_sym.GetSymbols();
     const auto it = std::ranges::find_if(
-        symbols, [&](const Loader::SymbolRecord& record) { return record.name.contains(nid_str); });
+        symbols, [&](const Loader::SymbolRecord& record) { return record.name.contains(nid_str); },
+        &decltype(symbols)::value_type::second);
     if (it != symbols.end()) {
-        return reinterpret_cast<void*>(it->virtual_address);
+        return reinterpret_cast<void*>(it->second.virtual_address);
     }
     return nullptr;
 }

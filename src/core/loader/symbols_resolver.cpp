@@ -11,7 +11,9 @@
 namespace Core::Loader {
 
 void SymbolsResolver::AddSymbol(const SymbolResolver& s, u64 virtual_addr) {
-    m_symbols.emplace_back(GenerateName(s), s.nidName, virtual_addr);
+    auto n = GenerateName(s);
+    SymbolRecord sr{n, s.nidName, virtual_addr};
+    m_symbols.emplace(n, sr);
 }
 
 std::string SymbolsResolver::GenerateName(const SymbolResolver& s) {
@@ -21,10 +23,13 @@ std::string SymbolsResolver::GenerateName(const SymbolResolver& s) {
 
 const SymbolRecord* SymbolsResolver::FindSymbol(const SymbolResolver& s) const {
     const std::string name = GenerateName(s);
-    for (u32 i = 0; i < m_symbols.size(); i++) {
-        if (m_symbols[i].name == name) {
-            return &m_symbols[i];
-        }
+    // for (u32 i = 0; i < m_symbols.size(); i++) {
+    //     if (m_symbols[i].name == name) {
+    //         return &m_symbols[i];
+    //     }
+    // }
+    if (auto n = m_symbols.find(name); n != m_symbols.end()) {
+        return &n->second;
     }
 
     // LOG_INFO(Core_Linker, "Unresolved! {}", name);
@@ -34,7 +39,7 @@ const SymbolRecord* SymbolsResolver::FindSymbol(const SymbolResolver& s) const {
 void SymbolsResolver::DebugDump(const std::filesystem::path& file_name) {
     Common::FS::IOFile f{file_name, Common::FS::FileAccessMode::Create,
                          Common::FS::FileType::TextFile};
-    for (const auto& symbol : m_symbols) {
+    for (const auto& [k, symbol] : m_symbols) {
         const auto ids = Common::SplitString(symbol.name, '#');
         const auto aeronid = AeroLib::FindByNid(ids.at(0).c_str());
         const auto nid_name = aeronid ? aeronid->name : "UNK";

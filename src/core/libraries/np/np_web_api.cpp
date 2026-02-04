@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: Copyright 2025 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include <magic_enum/magic_enum.hpp>
 #include <mutex>
+#include <magic_enum/magic_enum.hpp>
 
 #include "common/logging/log.h"
 #include "core/libraries/error_codes.h"
@@ -14,7 +14,7 @@
 
 namespace Libraries::Np::NpWebApi {
 
-const std::string BASE_URL = "http://127.0.0.1:5000";
+const std::string BASE_URL = "http://127.0.0.1:3000";
 
 const s32 ORBIS_NP_WEBAPI_ERROR_OUT_OF_MEMORY = 0x80552901;
 const s32 ORBIS_NP_WEBAPI_ERROR_INVALID_ARGUMENT = 0x80552902;
@@ -222,14 +222,19 @@ s32 PS4_SYSV_ABI sceNpWebApiCreateContextA(s32 libCtxId,
     return ORBIS_NP_WEBAPI_ERROR_USER_CONTEXT_MAX;
 }
 
-s32 PS4_SYSV_ABI sceNpWebApiCreateExtdPushEventFilter() {
-    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
-    return ORBIS_OK;
+s32 PS4_SYSV_ABI sceNpWebApiCreateExtdPushEventFilter(s32 libCtxId, s32 handleId,
+                                                      char* npServiceName, u32 npServiceLabel,
+                                                      void* filterParam, u64 filterParamNum) {
+    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called, ctxId = {}, npServiceName = {}, npServiceLabel = {}",
+              libCtxId, npServiceName ? npServiceName : "", npServiceLabel);
+    static s32 id = 1;
+    return id++;
 }
 
 s32 PS4_SYSV_ABI sceNpWebApiCreateHandle() {
     LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
-    return ORBIS_OK;
+    static s32 id = 1;
+    return id++;
 }
 
 s32 PS4_SYSV_ABI sceNpWebApiCreateMultipartRequest() {
@@ -243,7 +248,8 @@ struct OrbisNpWebApiRequestContent {
     u8 pad[16];
 };
 
-s32 PS4_SYSV_ABI sceNpWebApiCreateRequest(s32 userCtxId, char* api, char* path, OrbisNpWebApiHttpMethod method,
+s32 PS4_SYSV_ABI sceNpWebApiCreateRequest(s32 userCtxId, char* api, char* path,
+                                          OrbisNpWebApiHttpMethod method,
                                           OrbisNpWebApiRequestContent* content, s64* reqId) {
     LOG_ERROR(Lib_NpWebApi,
               "(STUBBED) called, userCtxId = {}, api = {}, path = {}, content.len = {}, "
@@ -372,14 +378,107 @@ s32 PS4_SYSV_ABI sceNpWebApiGetErrorCode() {
     return ORBIS_OK;
 }
 
-s32 PS4_SYSV_ABI sceNpWebApiGetHttpResponseHeaderValue() {
-    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
-    return ORBIS_OK;
+s32 PS4_SYSV_ABI sceNpWebApiGetHttpResponseHeaderValue(s64 reqId, char* header, char* value,
+                                                       u64 len) {
+    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called, reqId = {}, header = {}, len = {}", reqId, header,
+              len);
+
+    if (!value) {
+        return ORBIS_NP_WEBAPI_ERROR_INVALID_ARGUMENT;
+    }
+
+    auto libCtxId = reqId >> 48;
+    if (libCtxId < 0 || libCtxId >= MAX_LIB_CONTEXTS) {
+        return ORBIS_NP_WEBAPI_ERROR_INVALID_LIB_CONTEXT_ID;
+    }
+    auto ctx = libContext[libCtxId];
+    if (!ctx) {
+        return ORBIS_NP_WEBAPI_ERROR_LIB_CONTEXT_NOT_FOUND;
+    }
+
+    UserContext* userCtx = nullptr;
+    {
+        std::scoped_lock lk{ctx->mutex};
+        auto userCtxId_ = (reqId >> 32) & 0xFFFF;
+        if (userCtxId_ < 0 || userCtxId_ >= MAX_USER_CONTEXTS) {
+            return ORBIS_NP_WEBAPI_ERROR_USER_CONTEXT_NOT_FOUND;
+        }
+        userCtx = ctx->userContext[userCtxId_];
+        if (!userCtx) {
+            return ORBIS_NP_WEBAPI_ERROR_USER_CONTEXT_NOT_FOUND;
+        }
+    }
+
+    std::scoped_lock userLk{userCtx->mutex};
+
+    auto request = reqId & 0xFFFFFFFF;
+    if (request < 0 || request >= MAX_ACTIVE_REQUESTS) {
+        return ORBIS_NP_WEBAPI_ERROR_REQUEST_NOT_FOUND;
+    }
+    auto req = userCtx->requests[request];
+    if (!req) {
+        return ORBIS_NP_WEBAPI_ERROR_REQUEST_NOT_FOUND;
+    }
+
+    if (req->response && req->response.value()->has_header(header)) {
+        auto v = req->response.value()->get_header_value(header);
+        strncpy(value, v.c_str(), len);
+        LOG_ERROR(Lib_NpWebApi, "value = {}", value);
+
+        return ORBIS_OK;
+    } else {
+        return -1; // ???
+    }
 }
 
-s32 PS4_SYSV_ABI sceNpWebApiGetHttpResponseHeaderValueLength() {
-    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
-    return ORBIS_OK;
+s32 PS4_SYSV_ABI sceNpWebApiGetHttpResponseHeaderValueLength(s64 reqId, char* header, u64* length) {
+    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called, reqId = {}, header = {}", reqId, header);
+
+    if (!length) {
+        return ORBIS_NP_WEBAPI_ERROR_INVALID_ARGUMENT;
+    }
+
+    auto libCtxId = reqId >> 48;
+    if (libCtxId < 0 || libCtxId >= MAX_LIB_CONTEXTS) {
+        return ORBIS_NP_WEBAPI_ERROR_INVALID_LIB_CONTEXT_ID;
+    }
+    auto ctx = libContext[libCtxId];
+    if (!ctx) {
+        return ORBIS_NP_WEBAPI_ERROR_LIB_CONTEXT_NOT_FOUND;
+    }
+
+    UserContext* userCtx = nullptr;
+    {
+        std::scoped_lock lk{ctx->mutex};
+        auto userCtxId_ = (reqId >> 32) & 0xFFFF;
+        if (userCtxId_ < 0 || userCtxId_ >= MAX_USER_CONTEXTS) {
+            return ORBIS_NP_WEBAPI_ERROR_USER_CONTEXT_NOT_FOUND;
+        }
+        userCtx = ctx->userContext[userCtxId_];
+        if (!userCtx) {
+            return ORBIS_NP_WEBAPI_ERROR_USER_CONTEXT_NOT_FOUND;
+        }
+    }
+
+    std::scoped_lock userLk{userCtx->mutex};
+
+    auto request = reqId & 0xFFFFFFFF;
+    if (request < 0 || request >= MAX_ACTIVE_REQUESTS) {
+        return ORBIS_NP_WEBAPI_ERROR_REQUEST_NOT_FOUND;
+    }
+    auto req = userCtx->requests[request];
+    if (!req) {
+        return ORBIS_NP_WEBAPI_ERROR_REQUEST_NOT_FOUND;
+    }
+
+    if (req->response && req->response.value()->has_header(header)) {
+        *length = req->response.value()->get_header_value(header).size();
+        LOG_ERROR(Lib_NpWebApi, "*length = {}", *length);
+
+        return ORBIS_OK;
+    } else {
+        return -1; // ???
+    }
 }
 
 s32 PS4_SYSV_ABI sceNpWebApiGetHttpStatusCode(s64 reqId, u32* statusCode) {
@@ -424,9 +523,10 @@ s32 PS4_SYSV_ABI sceNpWebApiGetHttpStatusCode(s64 reqId, u32* statusCode) {
 
     if (req->response) {
         *statusCode = req->response.value()->status;
+        LOG_ERROR(Lib_NpWebApi, "*statusCode = {}", *statusCode);
+
         return ORBIS_OK;
-    }
-    else {
+    } else {
         return -1; // ???
     }
 }
@@ -488,6 +588,10 @@ s32 PS4_SYSV_ABI sceNpWebApiIntRegisterServicePushEventCallbackA() {
 s32 PS4_SYSV_ABI sceNpWebApiReadData(s64 reqId, void* data, u64 len) {
     LOG_ERROR(Lib_NpWebApi, "(STUBBED) called, reqId = {:#x}, len = {}", reqId, len);
 
+    if (!data || len == 0) {
+        return ORBIS_NP_WEBAPI_ERROR_INVALID_ARGUMENT;
+    }
+
     auto libCtxId = reqId >> 48;
     if (libCtxId < 0 || libCtxId >= MAX_LIB_CONTEXTS) {
         return ORBIS_NP_WEBAPI_ERROR_INVALID_LIB_CONTEXT_ID;
@@ -525,13 +629,21 @@ s32 PS4_SYSV_ABI sceNpWebApiReadData(s64 reqId, void* data, u64 len) {
     if (!req->response) {
         return 1; // ORBIS_NP_WEBAPI_ERROR_BEFORE_SEND???;
     }
+    if (req->response && !*(req->response)) {
+        return 0x80552914;
+    }
+    if (req->response.value()->status < 200 || req->response.value()->status >= 400) {
+        return 0x80552914;
+    }
 
-    auto bytesToCopy = (req->response.value()->body.length() < len ? req->response.value()->body.length() : len) - req->responseBodyOffset;
+    auto bytesToCopy =
+        (req->response.value()->body.length() < len ? req->response.value()->body.length() : len) -
+        req->responseBodyOffset;
     if (bytesToCopy == 0) {
         return ORBIS_OK;
-    }
-    else {
-        LOG_DEBUG(Lib_NpWebApi, "response data: {}", req->response.value()->body.substr(req->responseBodyOffset, bytesToCopy));
+    } else {
+        LOG_DEBUG(Lib_NpWebApi, "response data: {}",
+                  req->response.value()->body.substr(req->responseBodyOffset, bytesToCopy));
         memcpy(data, req->response.value()->body.c_str() + req->responseBodyOffset, bytesToCopy);
         req->responseBodyOffset += bytesToCopy;
         return bytesToCopy;
@@ -540,7 +652,8 @@ s32 PS4_SYSV_ABI sceNpWebApiReadData(s64 reqId, void* data, u64 len) {
 
 s32 PS4_SYSV_ABI sceNpWebApiRegisterExtdPushEventCallbackA() {
     LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
-    return ORBIS_OK;
+    static s32 id = 1;
+    return id++;
 }
 
 s32 PS4_SYSV_ABI sceNpWebApiSendMultipartRequest() {
@@ -553,9 +666,12 @@ s32 PS4_SYSV_ABI sceNpWebApiSendMultipartRequest2() {
     return ORBIS_OK;
 }
 
-s32 PS4_SYSV_ABI sceNpWebApiSendRequest() {
-    LOG_ERROR(Lib_NpWebApi, "(STUBBED) called");
-    return ORBIS_OK;
+struct OrbisNpWebApiResponseInformation;
+s32 PS4_SYSV_ABI sceNpWebApiSendRequest2(s64 reqId, const void* data, u64 len,
+                                         OrbisNpWebApiResponseInformation* responseInfo);
+
+s32 PS4_SYSV_ABI sceNpWebApiSendRequest(s64 reqId, const void* data, u64 len) {
+    return sceNpWebApiSendRequest2(reqId, data, len, nullptr);
 }
 
 struct OrbisNpWebApiResponseInformation {
@@ -565,7 +681,8 @@ struct OrbisNpWebApiResponseInformation {
     u64 responseSize;
 };
 
-s32 PS4_SYSV_ABI sceNpWebApiSendRequest2(s64 reqId, const void* data, u64 len, OrbisNpWebApiResponseInformation* responseInfo) {
+s32 PS4_SYSV_ABI sceNpWebApiSendRequest2(s64 reqId, const void* data, u64 len,
+                                         OrbisNpWebApiResponseInformation* responseInfo) {
     LOG_ERROR(Lib_NpWebApi, "(STUBBED) called, reqId = {:#x}, len = {}", reqId, len);
 
     auto libCtxId = reqId >> 48;
@@ -608,8 +725,8 @@ s32 PS4_SYSV_ABI sceNpWebApiSendRequest2(s64 reqId, const void* data, u64 len, O
 
     req->client = std::make_unique<httplib::Client>(BASE_URL);
     req->client->set_logger([](const httplib::Request& req, const httplib::Response& res) {
-        std::cout << "✓ " << req.method << " " << req.path
-                << " -> " << res.status << " (" << res.body.size() << " bytes" << std::endl;
+        std::cout << "✓ " << req.method << " " << req.path << " -> " << res.status << " ("
+                  << res.body.size() << ") bytes " << res.body << std::endl;
     });
     req->client->set_error_logger([](const httplib::Error& err, const httplib::Request* req) {
         std::cerr << "✗ ";
@@ -620,47 +737,48 @@ s32 PS4_SYSV_ABI sceNpWebApiSendRequest2(s64 reqId, const void* data, u64 len, O
 
         // Add specific guidance based on error type
         switch (err) {
-            case httplib::Error::Connection:
+        case httplib::Error::Connection:
             std::cerr << " (verify server is running and reachable)";
             break;
-            case httplib::Error::SSLConnection:
+        case httplib::Error::SSLConnection:
             std::cerr << " (check SSL certificate and TLS configuration)";
             break;
-            case httplib::Error::ConnectionTimeout:
+        case httplib::Error::ConnectionTimeout:
             std::cerr << " (increase timeout or check network latency)";
             break;
-            case httplib::Error::Read:
+        case httplib::Error::Read:
             std::cerr << " (server may have closed connection prematurely)";
             break;
-            default:
+        default:
             break;
         }
         std::cerr << std::endl;
     });
 
     switch (req->httpMethod) {
-        case OrbisNpWebApiHttpMethod::Get: {
-            req->response = req->client->Get("/" + req->api + req->path);
-            break;
-        }
-        case OrbisNpWebApiHttpMethod::Put: {
-            auto content = std::string{(char*)data, len};
-            LOG_DEBUG(Lib_NpWebApi, "content: {}", content);
-            req->response = req->client->Put("/" + req->api + req->path, content, req->contentType);
-            break;
-        }
-        case OrbisNpWebApiHttpMethod::Post: {
-            auto content = std::string{(char*)data, len};
-            LOG_DEBUG(Lib_NpWebApi, "content: {}", content);
-            req->response = req->client->Post("/" + req->api + req->path, content, req->contentType);
-            break;
-        }
-        case OrbisNpWebApiHttpMethod::Delete: {
-            req->response = req->client->Delete("/" + req->api + req->path);
-            break;
-        }
-        default:
-            return -1; // ???
+    case OrbisNpWebApiHttpMethod::Get: {
+        req->response = req->client->Get("/" + req->api + req->path);
+        break;
+    }
+    case OrbisNpWebApiHttpMethod::Put: {
+        auto content = std::string{(char*)data, len};
+        LOG_DEBUG(Lib_NpWebApi, "content: {}", content);
+        req->response = req->client->Put("/" + req->api + req->path, content, req->contentType);
+        break;
+    }
+    case OrbisNpWebApiHttpMethod::Post: {
+        auto content = std::string((char*)data, len);
+        std::cout << content << std::endl;
+        // LOG_DEBUG(Lib_NpWebApi, "content: {}", content);
+        req->response = req->client->Post("/" + req->api + req->path, content, req->contentType);
+        break;
+    }
+    case OrbisNpWebApiHttpMethod::Delete: {
+        req->response = req->client->Delete("/" + req->api + req->path);
+        break;
+    }
+    default:
+        return -1; // ???
     }
 
     if (responseInfo && *(req->response)) {
