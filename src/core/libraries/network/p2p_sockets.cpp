@@ -15,7 +15,9 @@ int P2PSocket::Close() {
 }
 
 int P2PSocket::SetSocketOptions(int level, int optname, const void* optval, u32 optlen) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
+    std::vector<u8> zero(optlen, 0);
+    auto val = memcmp(optval, zero.data(), optlen) != 0;
+    LOG_ERROR(Lib_Net, "(STUBBED) called, value is {}", val);
     return 0;
 }
 
@@ -25,7 +27,10 @@ int P2PSocket::GetSocketOptions(int level, int optname, void* optval, u32* optle
 }
 
 int P2PSocket::Bind(const OrbisNetSockaddr* addr, u32 addrlen) {
-    LOG_ERROR(Lib_Net, "(STUBBED) called");
+    const OrbisNetSockaddrIn* addr_in = (const OrbisNetSockaddrIn*)addr;
+    LOG_ERROR(Lib_Net,
+              "(STUBBED) called, addr->sin_family = {}, addr->sin_port = {}, addr->sin_vport = {}",
+              addr_in->sin_family, htons(addr_in->sin_port), htons(addr_in->sin_vport));
     return 0;
 }
 

@@ -90,6 +90,15 @@ struct OrbisNpCreateAsyncRequestParameter {
     u8 padding[4];
 };
 
+struct OrbisNpTitleId {
+    char id[33];
+    u8 padding[3];
+};
+
+struct OrbisNpTitleSecret {
+    u8 data[128];
+};
+
 void RegisterNpCallback(std::string key, std::function<void()> cb);
 void DeregisterNpCallback(std::string key);
 
