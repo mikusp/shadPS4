@@ -4,6 +4,7 @@
 #pragma once
 
 #include <functional>
+#include <string>
 
 #include "common/types.h"
 #include "core/libraries/np/np_error.h"
@@ -106,6 +107,8 @@ s32 PS4_SYSV_ABI sceNpGetNpId(Libraries::UserService::OrbisUserServiceUserId use
                               OrbisNpId* np_id);
 s32 PS4_SYSV_ABI sceNpGetOnlineId(Libraries::UserService::OrbisUserServiceUserId user_id,
                                   OrbisNpOnlineId* online_id);
+
+extern OrbisNpTitleId g_np_title_id;
 
 void RegisterLib(Core::Loader::SymbolsResolver* sym);
 } // namespace Libraries::Np::NpManager

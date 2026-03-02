@@ -136,3 +136,9 @@
 [submodule "externals/cppcodec"]
 	path = externals/cppcodec
 	url = https://github.com/tplgy/cppcodec.git
+[submodule "externals/websocketpp"]
+	path = externals/websocketpp
+	url = https://github.com/zaphoyd/websocketpp.git
+[submodule "externals/ixwebsocket"]
+	path = externals/ixwebsocket
+	url = https://github.com/machinezone/IXWebSocket

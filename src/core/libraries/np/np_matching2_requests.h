@@ -1,0 +1,178 @@
+// SPDX-FileCopyrightText: Copyright 2026 shadPS4 Emulator Project
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#pragma once
+
+#include "common/types.h"
+#include "core/libraries/np/np_manager.h"
+#include "core/libraries/np/np_matching2.h"
+
+namespace Libraries::Np::NpMatching2 {
+
+struct OrbisNpMatching2SignalingParam {
+    int type;
+    int flag;
+    OrbisNpMatching2RoomMemberId mainMember;
+    u8 pad[4];
+};
+
+struct OrbisNpMatching2RoomPassword {
+    u8 data[8];
+};
+
+struct OrbisNpMatching2GroupLabel {
+    u8 data[8];
+};
+
+struct OrbisNpMatching2RoomGroupConfig {
+    u32 slots;
+    bool hasLabel;
+    OrbisNpMatching2GroupLabel label;
+    bool hasPassword;
+    u8 pad[2];
+};
+
+struct OrbisNpMatching2BinAttr {
+    OrbisNpMatching2AttributeId id;
+    u8 pad[6];
+    u8* data;
+    u64 dataSize;
+};
+
+struct OrbisNpMatching2IntAttr {
+    OrbisNpMatching2AttributeId id;
+    u8 pad[2];
+    u32 attr;
+};
+
+template <typename T>
+struct OrbisNpMatching2CreateJoinRoomRequest_ {
+    u16 maxSlot;
+    OrbisNpMatching2TeamId teamId;
+    u8 pad[5];
+    OrbisNpMatching2Flags flags;
+    OrbisNpMatching2WorldId worldId;
+    OrbisNpMatching2LobbyId lobbyId;
+    OrbisNpMatching2RoomPassword* roomPasswd;
+    u64* passwdSlotMask;
+    OrbisNpMatching2RoomGroupConfig* groupConfig;
+    u64 groupConfigs;
+    OrbisNpMatching2GroupLabel* joinGroupLabel;
+    T* allowedUser;
+    u64 allowedUsers;
+    T* blockedUser;
+    u64 blockedUsers;
+    OrbisNpMatching2BinAttr* internalBinAttr;
+    u64 internalBinAttrs;
+    OrbisNpMatching2IntAttr* externalSearchIntAttr;
+    u64 externalSearchIntAttrs;
+    OrbisNpMatching2BinAttr* externalSearchBinAttr;
+    u64 externalSearchBinAttrs;
+    OrbisNpMatching2BinAttr* externalBinAttr;
+    u64 externalBinAttrs;
+    OrbisNpMatching2BinAttr* memberInternalBinAttr;
+    u64 memberInternalBinAttrs;
+    OrbisNpMatching2SignalingParam* signalingParam;
+
+    int Validate() {
+        return 0;
+    }
+};
+
+using OrbisNpMatching2CreateJoinRoomRequest =
+    OrbisNpMatching2CreateJoinRoomRequest_<Libraries::Np::OrbisNpOnlineId>;
+using OrbisNpMatching2CreateJoinRoomRequestA =
+    OrbisNpMatching2CreateJoinRoomRequest_<Libraries::Np::OrbisNpAccountId>;
+
+static_assert(sizeof(OrbisNpMatching2CreateJoinRoomRequestA) == 184);
+
+struct OrbisNpMatching2RoomGroup {
+    OrbisNpMatching2RoomGroupId id;
+    bool hasPasswd;
+    bool hasLabel;
+    u8 pad;
+    OrbisNpMatching2GroupLabel label;
+    u32 slots;
+    u32 groupMembers;
+};
+
+struct OrbisNpMatching2RoomDataInternal {
+    u16 publicSlots;
+    u16 privateSlots;
+    u16 openPublicSlots;
+    u16 openPrivateSlots;
+    u16 maxSlot;
+    OrbisNpMatching2ServerId serverId;
+    OrbisNpMatching2WorldId worldId;
+    OrbisNpMatching2LobbyId lobbyId;
+    OrbisNpMatching2RoomId roomId;
+    u64 passwdSlotMask;
+    u64 joinedSlotMask;
+    const OrbisNpMatching2RoomGroup* roomGroup;
+    u64 roomGroups;
+    OrbisNpMatching2Flags flags;
+    u8 pad[4];
+    const OrbisNpMatching2BinAttr* internalBinAttr;
+    u64 internalBinAttrs;
+};
+
+template <typename T>
+struct OrbisNpMatching2RoomMemberDataInternal_ {
+    OrbisNpMatching2RoomMemberDataInternal_<T>* next;
+    u64 joinDateTicks;
+    T user;
+    Libraries::Np::OrbisNpOnlineId onlineId;
+    u8 pad[4];
+    OrbisNpMatching2RoomMemberId memberId;
+    OrbisNpMatching2TeamId teamId;
+    OrbisNpMatching2NatType natType;
+    OrbisNpMatching2Flags flags;
+    OrbisNpMatching2RoomGroup* roomGroup;
+    OrbisNpMatching2BinAttr* roomMemberInternalBinAttr;
+    u64 roomMemberInternalBinAttrs;
+};
+
+using OrbisNpMatching2RoomMemberDataInternal = OrbisNpMatching2RoomMemberDataInternal_<Libraries::Np::OrbisNpPeerAddress>;
+using OrbisNpMatching2RoomMemberDataInternalA = OrbisNpMatching2RoomMemberDataInternal_<Libraries::Np::OrbisNpPeerAddressA>;
+
+template<typename T>
+struct OrbisNpMatching2RoomMemberDataInternalList_ {
+    OrbisNpMatching2RoomMemberDataInternal_<T>* members;
+    u64 membersNum;
+    OrbisNpMatching2RoomMemberDataInternal_<T>* me;
+    OrbisNpMatching2RoomMemberDataInternal_<T>* owner;
+};
+
+using OrbisNpMatching2RoomMemberDataInternalList = OrbisNpMatching2RoomMemberDataInternalList_<Libraries::Np::OrbisNpPeerAddress>;
+using OrbisNpMatching2RoomMemberDataInternalListA = OrbisNpMatching2RoomMemberDataInternalList_<Libraries::Np::OrbisNpPeerAddressA>;
+
+struct OrbisNpMatching2CreateJoinRoomResponse {
+    const OrbisNpMatching2RoomDataInternal* roomData;
+    OrbisNpMatching2RoomMemberDataInternalList members;
+};
+
+struct OrbisNpMatching2CreateJoinRoomResponseA {
+    OrbisNpMatching2RoomDataInternal* roomData;
+    OrbisNpMatching2RoomMemberDataInternalListA members;
+};
+
+
+using OrbisNpMatching2RequestCallback = PS4_SYSV_ABI void (*)(OrbisNpMatching2ContextId,
+                                                              OrbisNpMatching2RequestId,
+                                                              OrbisNpMatching2Event, int,
+                                                              const void*, void*);
+using OrbisNpMatching2RequestFn = PS4_SYSV_ABI void (OrbisNpMatching2ContextId,
+                                                              OrbisNpMatching2RequestId,
+                                                              OrbisNpMatching2Event, int,
+                                                              const void*, void*);
+
+struct OrbisNpMatching2RequestOptParam {
+    OrbisNpMatching2RequestCallback callback;
+    void* arg;
+    u32 timeout;
+    u16 appId;
+    u8 dummy[2];
+};
+
+
+} // namespace Libraries::Np::NpMatching2

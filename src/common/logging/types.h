@@ -133,6 +133,7 @@ enum class Class : u8 {
     Input,                   ///< Input emulation
     Tty,                     ///< Debug output from emu
     KeyManager,              ///< Key management system
+    ShadNet,                 ///< ShadNet
     Count                    ///< Total number of logging classes
 };
 

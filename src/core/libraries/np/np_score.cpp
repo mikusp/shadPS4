@@ -12,8 +12,17 @@
 #include "core/libraries/np/np_types.h"
 #include "core/libraries/np/object_manager.h"
 #include "core/libraries/system/userservice.h"
+#include "core/shadnet/auth_manager.h"
+#include "cppcodec/base64_rfc4648.hpp"
+#include "externals/httplib.h"
+#include "nlohmann/json.hpp"
 
 namespace Libraries::Np::NpScore {
+
+using json = nlohmann::json;
+using base64 = cppcodec::base64_rfc4648;
+
+const std::string BASE_URL = "http://127.0.0.1:3000";
 
 int PackReqId(int libCtxId, int reqId) {
     return ((libCtxId & 0xFFFF) << 16) | (reqId & 0xFFFF);
@@ -31,6 +40,46 @@ struct NpScoreRequest {
     u32 pcId;
     std::future<int> requestFuture;
 };
+
+httplib::Client NewClient() {
+    httplib::Client client(BASE_URL);
+
+    client.set_default_headers({{"X-NP-TITLE-ID", NpManager::g_np_title_id.id}});
+    client.set_bearer_token_auth(AuthManager::Instance().token());
+
+    client.set_logger([](const httplib::Request& req, const httplib::Response& res) {
+        std::cout << "✓ " << req.method << " " << req.path << " -> " << res.status << " ("
+                  << res.body.size() << ") bytes " << res.body << std::endl;
+    });
+    client.set_error_logger([](const httplib::Error& err, const httplib::Request* req) {
+        std::cerr << "✗ ";
+        if (req) {
+            std::cerr << req->method << " " << req->path << " ";
+        }
+        std::cerr << "failed: " << httplib::to_string(err);
+
+        // Add specific guidance based on error type
+        switch (err) {
+        case httplib::Error::Connection:
+            std::cerr << " (verify server is running and reachable)";
+            break;
+        case httplib::Error::SSLConnection:
+            std::cerr << " (check SSL certificate and TLS configuration)";
+            break;
+        case httplib::Error::ConnectionTimeout:
+            std::cerr << " (increase timeout or check network latency)";
+            break;
+        case httplib::Error::Read:
+            std::cerr << " (server may have closed connection prematurely)";
+            break;
+        default:
+            break;
+        }
+        std::cerr << std::endl;
+    });
+
+    return client;
+}
 
 using NpScoreRequestManager =
     ObjectManager<NpScoreRequest, 32, ORBIS_NP_COMMUNITY_ERROR_INVALID_ID,
@@ -178,7 +227,44 @@ int PS4_SYSV_ABI sceNpScoreGetBoardInfoAsync() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceNpScoreGetFriendsRanking() {
+int PS4_SYSV_ABI sceNpScoreGetFriendsRankingAsync(
+    int reqId, int scoreBoardId, int includeMe, OrbisNpScoreRankData* rankArray, u64 rankArraySize,
+    OrbisNpScoreComment* comments, u64 commentsBytes, OrbisNpScoreGameInfo* gameInfos,
+    u64 gameInfosBytes, u64 arrayLen, Libraries::Rtc::OrbisRtcTick* lastUpdate, u64* totalRecords,
+    void* option) {
+    LOG_ERROR(Lib_NpScore,
+              "(STUBBED) reqId = {:#x}, scoreBoardId = {}, includeMe = {}, rankArray = {}, "
+              "rankArraySize = {}, comments = {}, commentsBytes = {}, gameInfos = {}, "
+              "gameInfosBytes = {}, arrayLen = {}",
+              reqId, scoreBoardId, includeMe, fmt::ptr(rankArray), rankArraySize,
+              fmt::ptr(comments), commentsBytes, fmt::ptr(gameInfos), gameInfosBytes, arrayLen);
+
+    NpScoreRequest* req = nullptr;
+    if (auto ret = GetRequest(reqId, &req); ret < 0) {
+        return ret;
+    }
+
+    req->requestFuture = std::async([=]() {
+        // fake an empty response
+        if (totalRecords) {
+            *totalRecords = 0;
+        }
+        if (lastUpdate) {
+            Libraries::Rtc::sceRtcGetCurrentTick(lastUpdate);
+        }
+
+        return 0;
+    });
+
+    return ORBIS_OK;
+}
+
+int PS4_SYSV_ABI sceNpScoreGetFriendsRanking(int reqId, int scoreBoardId, int includeMe,
+                                             OrbisNpScoreRankData* rankArray, u64 rankArraySize,
+                                             OrbisNpScoreComment* comments, u64 commentsSbytes,
+                                             OrbisNpScoreGameInfo* gameInfos, u64 gameInfosBytes,
+                                             u64 arrayLen, Libraries::Rtc::OrbisRtcTick* lastUpdate,
+                                             u64* totalRecords, void* option) {
     LOG_ERROR(Lib_NpScore, "(STUBBED) called");
     return ORBIS_OK;
 }
@@ -189,11 +275,6 @@ int PS4_SYSV_ABI sceNpScoreGetFriendsRankingA() {
 }
 
 int PS4_SYSV_ABI sceNpScoreGetFriendsRankingAAsync() {
-    LOG_ERROR(Lib_NpScore, "(STUBBED) called");
-    return ORBIS_OK;
-}
-
-int PS4_SYSV_ABI sceNpScoreGetFriendsRankingAsync() {
     LOG_ERROR(Lib_NpScore, "(STUBBED) called");
     return ORBIS_OK;
 }
@@ -273,11 +354,6 @@ int PS4_SYSV_ABI sceNpScoreGetRankingByNpId() {
     return ORBIS_OK;
 }
 
-int PS4_SYSV_ABI sceNpScoreGetRankingByNpIdAsync() {
-    LOG_ERROR(Lib_NpScore, "(STUBBED) called");
-    return ORBIS_OK;
-}
-
 int PS4_SYSV_ABI sceNpScoreGetRankingByNpIdPcIdAsync(
     int reqId, OrbisNpScoreBoardId scoreBoardId, OrbisNpScoreNpIdPcId* accountIds,
     u64 accountIdsBytes, OrbisNpScorePlayerRankData* ranks, u64 ranksBytes,
@@ -332,6 +408,28 @@ int PS4_SYSV_ABI sceNpScoreGetRankingByNpIdPcIdAsync(
     });
 
     return ORBIS_OK;
+}
+
+int PS4_SYSV_ABI sceNpScoreGetRankingByNpIdAsync(
+    int reqId, OrbisNpScoreBoardId scoreBoardId, OrbisNpId* npIds, u64 npIdsBytes,
+    OrbisNpScorePlayerRankData* ranks, u64 ranksBytes, OrbisNpScoreComment* comments,
+    u64 commentsBytes, OrbisNpScoreGameInfo* gameInfos, u64 gameInfosBytes, u64 accountsLen,
+    Rtc::OrbisRtcTick* lastUpdate, OrbisNpScoreRankNumber* totalRecords, void* option) {
+    LOG_ERROR(Lib_NpScore,
+              "(STUBBED) called, reqId = {:#x}, scoreBoardId = {}, npIds = {}, npIdsBytes = "
+              "{}, ranks = {}, "
+              "comments = {}, gameInfos = {}, accountsLen = {}",
+              reqId, scoreBoardId, fmt::ptr(npIds), npIdsBytes, fmt::ptr(ranks), fmt::ptr(comments),
+              fmt::ptr(gameInfos), accountsLen);
+
+    std::vector<OrbisNpScoreNpIdPcId> npIdsPcIds;
+    std::ranges::transform(std::span(npIds, accountsLen), std::back_inserter(npIdsPcIds),
+                           [](OrbisNpId npId) -> OrbisNpScoreNpIdPcId { return {npId, 0, {}}; });
+
+    return sceNpScoreGetRankingByNpIdPcIdAsync(
+        reqId, scoreBoardId, npIdsPcIds.data(), accountsLen * sizeof(OrbisNpScoreNpIdPcId), ranks,
+        ranksBytes, comments, commentsBytes, gameInfos, gameInfosBytes, accountsLen, lastUpdate,
+        totalRecords, option);
 }
 
 int PS4_SYSV_ABI sceNpScoreGetRankingByNpIdPcId(
@@ -389,15 +487,56 @@ int PS4_SYSV_ABI sceNpScoreGetRankingByRangeAsync(
     }
 
     req->requestFuture = std::async(std::launch::async, [=]() {
-        if (totalRecords) {
-            *totalRecords = 0;
+        httplib::Client client = NewClient();
+        auto uri = std::format("/score/v1/ranking/{}/by-range?startRank={}&scores={}", scoreBoardId,
+                               startRank, ranksLen);
+
+        auto res = client.Get(uri);
+
+        if (res->status == httplib::StatusCode::OK_200) {
+            auto json = json::parse(res->body);
+
+            auto card = json["card"].get<u32>();
+
+            if (totalRecords) {
+                *totalRecords = card;
+            }
+
+            auto json_ranks = json["ranks"];
+            auto ranks_obtained = 0;
+            for (auto r : json_ranks) {
+                strcpy(ranks[ranks_obtained].onlineId.data, "shadps4");
+                ranks[ranks_obtained].pcId = r["id"]["pcId"].get<u32>();
+                ranks[ranks_obtained].rank1 = r["rank"].get<u32>();
+                ranks[ranks_obtained].rank2 = r["rank"].get<u32>();
+                ranks[ranks_obtained].rank3 = r["rank"].get<u32>();
+                ranks[ranks_obtained].hasGameData = false;
+                ranks[ranks_obtained].score = r["score"].get<s64>();
+                Libraries::Rtc::sceRtcGetCurrentTick(&ranks[ranks_obtained].recordTime);
+                ranks[ranks_obtained].accountId = r["id"]["accountId"].get<u64>();
+                if (gameInfos && r.contains("gameInfo")) {
+                    std::vector<u8> decoded = base64::decode(r["gameInfo"].get<std::string>());
+                    gameInfos[ranks_obtained].dataSize = decoded.size();
+                    if (decoded.size() > sizeof(OrbisNpScoreGameInfo::data)) {
+                        LOG_WARNING(Lib_NpScore, "gameInfo is too long! {} bytes", decoded.size());
+                    } else {
+                        std::memcpy(gameInfos[ranks_obtained].data, decoded.data(), decoded.size());
+                    }
+                }
+                if (comments && 0) {
+                    //
+                }
+                ranks_obtained++;
+            }
+
+            if (lastUpdate) {
+                Libraries::Rtc::sceRtcGetCurrentTick(lastUpdate);
+            }
+
+            return ranks_obtained;
         }
 
-        if (lastUpdate) {
-            Libraries::Rtc::sceRtcGetCurrentTick(lastUpdate);
-        }
-
-        return 0;
+        return -1;
     });
 
     return ORBIS_OK;
@@ -466,7 +605,8 @@ int PS4_SYSV_ABI sceNpScoreRecordScoreAsync(int reqId, OrbisNpScoreBoardId board
                                             OrbisNpScoreValue score, OrbisNpScoreComment* comment,
                                             OrbisNpScoreGameInfo* gameInfo, void* unk,
                                             Libraries::Rtc::OrbisRtcTick* date, void* option) {
-    LOG_ERROR(Lib_NpScore, "(STUBBED) reqId = {:#x}, boardId = {}, score = {}", reqId, boardId, score);
+    LOG_ERROR(Lib_NpScore, "(STUBBED) reqId = {:#x}, boardId = {}, score = {}", reqId, boardId,
+              score);
 
     if (option) {
         return ORBIS_NP_COMMUNITY_ERROR_INVALID_ARGUMENT;
@@ -477,7 +617,27 @@ int PS4_SYSV_ABI sceNpScoreRecordScoreAsync(int reqId, OrbisNpScoreBoardId board
         return ret;
     }
 
-    req->requestFuture = std::async(std::launch::async, [=]() { return 0; });
+    req->requestFuture = std::async(std::launch::async, [=]() {
+        httplib::Client client = NewClient();
+        auto uri = std::format("/score/v1/ranking/{}", boardId);
+        json payload;
+
+        payload["pcId"] = req->pcId;
+        payload["value"] = score;
+
+        if (comment) {
+            LOG_DEBUG(Lib_NpScore, "score comment {}", comment->comment);
+            payload["comment"] = base64::encode(comment->comment);
+        }
+
+        if (gameInfo) {
+            payload["gameInfo"] = base64::encode(gameInfo->data);
+        }
+
+        auto res = client.Post(uri, payload.dump(), "application/json");
+
+        return 0;
+    });
     return ORBIS_OK;
 }
 

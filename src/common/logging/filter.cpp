@@ -165,6 +165,7 @@ bool ParseFilterRule(Filter& instance, Iterator begin, Iterator end) {
     CLS(Input)                                                                                     \
     CLS(Tty)                                                                                       \
     CLS(KeyManager)                                                                                \
+    CLS(ShadNet)                                                                                   \
     CLS(Loader)
 
 // GetClassName is a macro defined by Windows.h, grrr...

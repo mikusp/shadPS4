@@ -18,6 +18,7 @@ namespace Libraries::Np::NpManager {
 static bool g_signed_in = false;
 static s32 g_active_requests = 0;
 static std::mutex g_request_mutex;
+OrbisNpTitleId g_np_title_id = {};
 
 static std::map<std::string, std::function<void()>> g_np_callbacks;
 static std::mutex g_np_callbacks_mutex;
@@ -688,6 +689,8 @@ s32 PS4_SYSV_ABI sceNpSetNpTitleId(OrbisNpTitleId* title_id, OrbisNpTitleSecret*
         return ORBIS_NP_ERROR_INVALID_ARGUMENT;
     }
     LOG_DEBUG(Lib_NpManager, "titleId = {}", title_id->id);
+
+    g_np_title_id = *title_id;
 
     return ORBIS_OK;
 }
