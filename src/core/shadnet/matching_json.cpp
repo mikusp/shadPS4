@@ -21,6 +21,16 @@ namespace nlohmann {
     };
 }
 
+namespace Libraries::Rtc {
+using json = nlohmann::json;
+
+void from_json(const json& j, OrbisRtcTick& tick) {
+    auto t = j.get<u64>();
+    tick.tick = t;
+}
+
+}
+
 namespace Libraries::Np {
 
 using json = nlohmann::json;
@@ -33,6 +43,13 @@ void from_json(const json& j, OrbisNpOnlineId& npId) {
     auto id = j.get<std::string>();
     strncpy(npId.data, id.c_str(), sizeof(npId.data));
 }
+
+NLOHMANN_JSON_SERIALIZE_ENUM(OrbisNpPlatformType, {
+    {OrbisNpPlatformType::NONE, "NONE"},
+    {OrbisNpPlatformType::PS3, "PS3"},
+    {OrbisNpPlatformType::VITA, "VITA"},
+    {OrbisNpPlatformType::PS4, "PS4"},
+})
 
 }
 
@@ -144,17 +161,28 @@ void from_json(const json& j, OrbisNpMatching2RoomGroup& group) {
 
 }
 
+void from_json(const json& j, OrbisNpMatching2RoomBinAttrInternalOwned& res) {
+    j.at("lastUpdate").get_to(res.lastUpdate);
+    j.at("memberId").get_to(res.memberId);
+    j.at("binAttr").get_to(res.binAttr);
+}
+
+void from_json(const json& j, OrbisNpMatching2RoomMemberBinAttrInternalOwned& res) {
+    j.at("lastUpdate").get_to(res.lastUpdate);
+    j.at("binAttr").get_to(res.binAttr);
+}
+
 void from_json(const json& j, OrbisNpMatching2RoomDataInternalOwned& res) {
-    j.at("publicSlots").get_to(res.publicSlots);
-    j.at("privateSlots").get_to(res.privateSlots);
-    j.at("openPublicSlots").get_to(res.openPublicSlots);
-    j.at("openPrivateSlots").get_to(res.openPrivateSlots);
+    j.at("publicSlotNum").get_to(res.publicSlots);
+    j.at("privateSlotNum").get_to(res.privateSlots);
+    j.at("openPublicSlotNum").get_to(res.openPublicSlots);
+    j.at("openPrivateSlotNum").get_to(res.openPrivateSlots);
     j.at("maxSlot").get_to(res.maxSlot);
     j.at("serverId").get_to(res.serverId);
     j.at("worldId").get_to(res.worldId);
     j.at("lobbyId").get_to(res.lobbyId);
     j.at("roomId").get_to(res.roomId);
-    j.at("passwdSlotMask").get_to(res.passwdSlotMask);
+    j.at("passwordSlotMask").get_to(res.passwdSlotMask);
     j.at("joinedSlotMask").get_to(res.joinedSlotMask);
     if (j.contains("roomGroup")) {
         res.roomGroup = j.at("roomGroup").get<std::vector<OrbisNpMatching2RoomGroup>>();
@@ -194,13 +222,18 @@ void from_json(const json& j, OrbisNpMatching2CreateJoinRoomResponseOwned& res) 
 
 OrbisNpMatching2RoomDataInternal OrbisNpMatching2RoomDataInternalOwned::view() {
     for (auto& attr : this->internalBinAttr) {
-        OrbisNpMatching2BinAttr a {
-            attr.id,
+        OrbisNpMatching2RoomBinAttrInternal a {
+            attr.lastUpdate,
+            attr.memberId,
             {},
-            attr.data.data(),
-            attr.data.size()
+            {
+                attr.binAttr.id,
+                {},
+                attr.binAttr.data.data(),
+                attr.binAttr.data.size()
+            }
         };
-        this->internalBinAttrView.push_back(a);
+        this->internalRoomBinAttrView.push_back(a);
     }
     return {
         .publicSlots = this->publicSlots,
@@ -217,21 +250,24 @@ OrbisNpMatching2RoomDataInternal OrbisNpMatching2RoomDataInternalOwned::view() {
         .roomGroup = this->roomGroup.data(),
         .roomGroups = this->roomGroup.size(),
         .flags = this->flags,
-        .internalBinAttr = this->internalBinAttrView.data(),
-        .internalBinAttrs = this->internalBinAttrView.size(),
+        .roomBinAttrInternal = this->internalRoomBinAttrView.data(),
+        .roomBinAttrInternalNum = this->internalRoomBinAttrView.size(),
     };
 }
 
 OrbisNpMatching2CreateJoinRoomResponse OrbisNpMatching2CreateJoinRoomResponseOwned::view() {
     this->roomDataView = roomData.view();
     for (auto& member : this->members) {
-        std::vector<OrbisNpMatching2BinAttr> attrVec;
+        std::vector<OrbisNpMatching2RoomMemberBinAttrInternal> attrVec;
         for (auto& attr : member.roomMemberInternalBinAttr) {
-            OrbisNpMatching2BinAttr a {
-                attr.id,
-                {},
-                attr.data.data(),
-                attr.data.size()
+            OrbisNpMatching2RoomMemberBinAttrInternal a {
+                attr.lastUpdate,
+                {
+                    attr.binAttr.id,
+                    {},
+                    attr.binAttr.data.data(),
+                    attr.binAttr.data.size()
+                }
             };
             attrVec.push_back(a);
         }
@@ -264,8 +300,9 @@ OrbisNpMatching2CreateJoinRoomResponse OrbisNpMatching2CreateJoinRoomResponseOwn
         {
             .members = this->membersView.data(),
             .membersNum = this->membersView.size(),
-            .me = nullptr,
-            .owner = nullptr,
+            // FIX for more than one players
+            .me = this->membersView.data(),
+            .owner = this->membersView.data(),
         }
     };
 }

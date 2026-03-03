@@ -35,7 +35,7 @@ private:
     void login() {
         httplib::Client client(BASE_URL);
         auto res =
-            client.Post("/auth/login", "{\"email\":\"test@example.com\", \"password\":\"hackmedaddy\"}",
+            client.Post("/auth/login", "{\"email\":\"test@example.com\", \"password\":\"foo\"}",
                         "application/json");
 
         if (res->status == httplib::StatusCode::OK_200) {

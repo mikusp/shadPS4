@@ -6,6 +6,7 @@
 #include "common/types.h"
 #include "core/libraries/np/np_manager.h"
 #include "core/libraries/np/np_matching2.h"
+#include "core/libraries/rtc/rtc.h"
 
 namespace Libraries::Np::NpMatching2 {
 
@@ -37,6 +38,18 @@ struct OrbisNpMatching2BinAttr {
     u8 pad[6];
     u8* data;
     u64 dataSize;
+};
+
+struct OrbisNpMatching2RoomBinAttrInternal {
+    Libraries::Rtc::OrbisRtcTick lastUpdate;
+    OrbisNpMatching2RoomMemberId memberId;
+    u8 pad[6];
+    OrbisNpMatching2BinAttr binAttr;
+};
+
+struct OrbisNpMatching2RoomMemberBinAttrInternal {
+    Libraries::Rtc::OrbisRtcTick lastUpdate;
+    OrbisNpMatching2BinAttr binAttr;
 };
 
 struct OrbisNpMatching2IntAttr {
@@ -112,9 +125,11 @@ struct OrbisNpMatching2RoomDataInternal {
     u64 roomGroups;
     OrbisNpMatching2Flags flags;
     u8 pad[4];
-    const OrbisNpMatching2BinAttr* internalBinAttr;
-    u64 internalBinAttrs;
+    const OrbisNpMatching2RoomBinAttrInternal* roomBinAttrInternal;
+    u64 roomBinAttrInternalNum;
 };
+
+static_assert(offsetof(OrbisNpMatching2RoomDataInternal, roomBinAttrInternal) == 0x48);
 
 template <typename T>
 struct OrbisNpMatching2RoomMemberDataInternal_ {
@@ -128,12 +143,14 @@ struct OrbisNpMatching2RoomMemberDataInternal_ {
     OrbisNpMatching2NatType natType;
     OrbisNpMatching2Flags flags;
     OrbisNpMatching2RoomGroup* roomGroup;
-    OrbisNpMatching2BinAttr* roomMemberInternalBinAttr;
+    OrbisNpMatching2RoomMemberBinAttrInternal* roomMemberInternalBinAttr;
     u64 roomMemberInternalBinAttrs;
 };
 
 using OrbisNpMatching2RoomMemberDataInternal = OrbisNpMatching2RoomMemberDataInternal_<Libraries::Np::OrbisNpPeerAddress>;
 using OrbisNpMatching2RoomMemberDataInternalA = OrbisNpMatching2RoomMemberDataInternal_<Libraries::Np::OrbisNpPeerAddressA>;
+
+// static_assert(sizeof(OrbisNpMatching2RoomMemberDataInternal) == 0x60);
 
 template<typename T>
 struct OrbisNpMatching2RoomMemberDataInternalList_ {

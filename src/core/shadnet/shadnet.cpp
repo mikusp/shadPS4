@@ -23,14 +23,14 @@ void to_json(json& j, const WsEnvelope& e) {
 }
 
 void from_json(const json& j, WsMessage& msg) {
-    j.at("request_id").get_to(msg.request_id);
-    if (!j.at("error_code").is_null()) {
+    j.at("id").get_to(msg.request_id);
+    if (j.contains("error_code")) {
         j.at("error_code").get_to(msg.error_code);
     }
-    if (!j.at("error").is_null()) {
+    if (j.contains("error")) {
         j.at("error").get_to(msg.error);
     }
-    if (!j.at("payload").is_null()) {
+    if (j.contains("payload")) {
         j.at("payload").get_to(msg.payload);
     }
 }

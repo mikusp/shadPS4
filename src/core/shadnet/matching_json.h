@@ -21,6 +21,18 @@ struct OrbisNpMatching2BinAttrOwned {
     std::vector<u8> data;
 };
 
+struct OrbisNpMatching2RoomBinAttrInternalOwned {
+    Libraries::Rtc::OrbisRtcTick lastUpdate;
+    OrbisNpMatching2RoomMemberId memberId;
+    u8 pad[6];
+    OrbisNpMatching2BinAttrOwned binAttr;
+};
+
+struct OrbisNpMatching2RoomMemberBinAttrInternalOwned {
+    Libraries::Rtc::OrbisRtcTick lastUpdate;
+    OrbisNpMatching2BinAttrOwned binAttr;
+};
+
 struct OrbisNpMatching2RoomMemberDataInternalOwned {
     u64 joinDateTicks;
     OrbisNpPeerAddressOwned user;
@@ -31,7 +43,7 @@ struct OrbisNpMatching2RoomMemberDataInternalOwned {
     OrbisNpMatching2NatType natType;
     OrbisNpMatching2Flags flags;
     std::optional<OrbisNpMatching2RoomGroup> roomGroup;
-    std::vector<OrbisNpMatching2BinAttrOwned> roomMemberInternalBinAttr;
+    std::vector<OrbisNpMatching2RoomMemberBinAttrInternalOwned> roomMemberInternalBinAttr;
 };
 
 struct OrbisNpMatching2RoomDataInternalOwned {
@@ -49,9 +61,9 @@ struct OrbisNpMatching2RoomDataInternalOwned {
     std::vector<OrbisNpMatching2RoomGroup> roomGroup;
     OrbisNpMatching2Flags flags;
     u8 pad[4];
-    std::vector<OrbisNpMatching2BinAttrOwned> internalBinAttr;
+    std::vector<OrbisNpMatching2RoomBinAttrInternalOwned> internalBinAttr;
 
-    std::vector<OrbisNpMatching2BinAttr> internalBinAttrView;
+    std::vector<OrbisNpMatching2RoomBinAttrInternal> internalRoomBinAttrView;
     OrbisNpMatching2RoomDataInternal view();
 };
 
@@ -61,7 +73,7 @@ struct OrbisNpMatching2CreateJoinRoomResponseOwned {
 
     OrbisNpMatching2RoomDataInternal roomDataView;
     std::vector<OrbisNpMatching2RoomMemberDataInternal> membersView;
-    std::vector<std::vector<OrbisNpMatching2BinAttr>> membersBinAttrs;
+    std::vector<std::vector<OrbisNpMatching2RoomMemberBinAttrInternal>> membersBinAttrs;
     OrbisNpMatching2CreateJoinRoomResponse view();
 };
 
