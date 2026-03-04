@@ -58,6 +58,10 @@ namespace Libraries::Np::NpMatching2 {
 using base64 = cppcodec::base64_rfc4648;
 using json = nlohmann::json;
 
+std::string request_tag(const OrbisNpMatching2SearchRoomRequest&) {
+    return "search_room";
+}
+
 std::string request_tag(const OrbisNpMatching2CreateJoinRoomRequest&) {
     return "create_join_room";
 }
@@ -88,12 +92,21 @@ void to_json(json& j, const OrbisNpMatching2IntAttr& attr) {
     j["value"] = attr.attr;
 }
 
+void from_json(const json& j, OrbisNpMatching2IntAttr& attr) {
+    j.at("attrId").get_to(attr.id);
+    j.at("value").get_to(attr.attr);
+}
+
 void to_json(json& j, const OrbisNpMatching2RoomPassword& pw) {
     j = json{{"data", pw.data}};
 }
 
 void to_json(json& j, const OrbisNpMatching2GroupLabel& label) {
     j = json{{"data", label.data}};
+}
+
+void from_json(const json& j, OrbisNpMatching2GroupLabel& label) {
+    j.at("data").get_to(label.data);
 }
 
 void to_json(json& j, const OrbisNpMatching2RoomGroupConfig& config) {
@@ -157,8 +170,53 @@ void to_json(json& j, const OrbisNpMatching2CreateJoinRoomRequestA& req) {
     to_json_a(j, req);
 }
 
-void from_json(const json& j, OrbisNpMatching2RoomGroup& group) {
+void to_json(json& j, const OrbisNpMatching2RangeFilter& f) {
+    j["startIndex"] = f.start;
+    j["max"] = f.max;
+}
 
+void to_json(json& j, const OrbisNpMatching2IntFilter& f) {
+    j["operator"] = f.op;
+    j["attr"] = f.attr;
+}
+
+void to_json(json& j, const OrbisNpMatching2BinFilter& f) {
+    j["operator"] = f.op;
+    j["attr"] = f.attr;
+}
+
+void to_json(json& j, const OrbisNpMatching2SearchRoomRequest& req) {
+    j["option"] = req.option;
+    j["worldId"] = req.worldId;
+    j["lobbyId"] = req.lobbyId;
+    j["rangeFilter"] = req.rangeFilter;
+    j["flagFilter"] = req.flagFilter;
+    j["flagAttr"] = req.flagAttrs;
+    if (req.intFilter && req.intFilters > 0) {
+        j["intFilter"] = std::span(req.intFilter, req.intFilters);
+    }
+    if (req.binFilter && req.binFilters > 0) {
+        j["binFilter"] = std::span(req.binFilter, req.binFilters);
+    }
+    if (req.attr && req.attrs > 0) {
+        j["attrIds"] = std::span(req.attr, req.attrs);
+    }
+}
+
+void from_json(const json& j, OrbisNpMatching2RoomGroup& group) {
+    j.at("id").get_to(group.id);
+    j.at("hasPasswd").get_to(group.hasPasswd);
+    j.at("hasLabel").get_to(group.hasLabel);
+    j.at("label").get_to(group.label);
+    j.at("slots").get_to(group.slots);
+    j.at("groupMembers").get_to(group.groupMembers);
+}
+
+void from_json(const json& j, OrbisNpMatching2RoomGroupInfo& group) {
+    j.at("id").get_to(group.id);
+    j.at("hasPasswd").get_to(group.hasPasswd);
+    j.at("slots").get_to(group.slots);
+    j.at("groupMembers").get_to(group.groupMembers);
 }
 
 void from_json(const json& j, OrbisNpMatching2RoomBinAttrInternalOwned& res) {
@@ -307,5 +365,105 @@ OrbisNpMatching2CreateJoinRoomResponse OrbisNpMatching2CreateJoinRoomResponseOwn
     };
 }
 
+void from_json(const json& j, OrbisNpMatching2Range& range) {
+    j.at("startIndex").get_to(range.start);
+    j.at("total").get_to(range.total);
+    j.at("resultCount").get_to(range.results);
+}
+
+void from_json(const json& j, OrbisNpMatching2RoomDataExternalOwned& data) {
+    j.at("maxSlot").get_to(data.maxSlot);
+    j.at("currentMemberNum").get_to(data.curMembers);
+    j.at("flagAttr").get_to(data.flags);
+    j.at("serverId").get_to(data.serverId);
+    j.at("worldId").get_to(data.worldId);
+    j.at("lobbyId").get_to(data.lobbyId);
+    j.at("roomId").get_to(data.roomId);
+    if (j.contains("passwdSlotMask")) {
+        j.at("passwdSlotMask").get_to(data.passwdSlotMask);
+    }
+    j.at("joinedSlotMask").get_to(data.joinedSlotMask);
+    j.at("publicSlotNum").get_to(data.publicSlots);
+    j.at("privateSlotNum").get_to(data.privateSlots);
+    j.at("openPublicSlotNum").get_to(data.openPublicSlots);
+    j.at("openPrivateSlotNum").get_to(data.openPrivateSlots);
+    j.at("owner").get_to(data.owner);
+    j.at("ownerOnlineId").get_to(data.ownerOnlineId);
+    if (j.contains("roomGroup")) {
+        j.at("roomGroup").get_to(data.roomGroup);
+    }
+    j.at("roomSearchableIntAttrExternal").get_to(data.externalSearchIntAttr);
+    j.at("roomSearchableBinAttrExternal").get_to(data.externalSearchBinAttr);
+    j.at("roomBinAttrExternal").get_to(data.externalBinAttr);
+}
+
+void from_json(const json& j, OrbisNpMatching2SearchRoomResponseOwned& res) {
+    j.at("range").get_to(res.range);
+    j.at("rooms").get_to(res.roomDataExt);
+}
+
+OrbisNpMatching2RoomDataExternal OrbisNpMatching2RoomDataExternalOwned::view() {
+    for (auto& attr : this->externalSearchBinAttr) {
+        OrbisNpMatching2BinAttr a {
+            attr.id,
+            {},
+            attr.data.data(),
+            attr.data.size()
+        };
+        this->externalSearchBinAttrView.push_back(a);
+    }
+
+    for (auto& attr : this->externalBinAttr) {
+        OrbisNpMatching2BinAttr a {
+            attr.id,
+            {},
+            attr.data.data(),
+            attr.data.size()
+        };
+        this->externalBinAttrView.push_back(a);
+    }
+
+    return {
+        .next = nullptr,
+        .maxSlot = this->maxSlot,
+        .curMembers = this->curMembers,
+        .flags = this->flags,
+        .serverId = this->serverId,
+        .worldId = this->worldId,
+        .lobbyId = this->lobbyId,
+        .roomId = this->roomId,
+        .passwdSlotMask = this->passwdSlotMask,
+        .joinedSlotMask = this->joinedSlotMask,
+        .publicSlots = this->publicSlots,
+        .privateSlots = this->privateSlots,
+        .openPublicSlots = this->openPublicSlots,
+        .openPrivateSlots = this->openPrivateSlots,
+        .owner = {
+            .npId = &this->owner.npId,
+            .platformType = this->owner.platform,
+        },
+        .ownerOnlineId = this->ownerOnlineId,
+        .roomGroup = this->roomGroup.data(),
+        .roomGroups = this->roomGroup.size(),
+        .externalSearchIntAttr = this->externalSearchIntAttr.data(),
+        .externalSearchIntAttrs = this->externalSearchIntAttr.size(),
+        .externalSearchBinAttr = this->externalSearchBinAttrView.data(),
+        .externalSearchBinAttrs = this->externalSearchBinAttrView.size(),
+        .externalBinAttr = this->externalBinAttrView.data(),
+        .externalBinAttrs = this->externalBinAttrView.size(),
+    };
+}
+
+OrbisNpMatching2SearchRoomResponse OrbisNpMatching2SearchRoomResponseOwned::view() {
+    for (auto& roomData : this->roomDataExt) {
+        auto view = roomData.view();
+        this->roomDataExtView.push_back(view);
+    }
+
+    return {
+        this->range,
+        {}
+    };
+}
 
 }

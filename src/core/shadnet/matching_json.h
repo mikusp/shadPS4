@@ -77,12 +77,49 @@ struct OrbisNpMatching2CreateJoinRoomResponseOwned {
     OrbisNpMatching2CreateJoinRoomResponse view();
 };
 
+struct OrbisNpMatching2RoomDataExternalOwned {
+    u16 maxSlot;
+    u16 curMembers;
+    OrbisNpMatching2Flags flags;
+    OrbisNpMatching2ServerId serverId;
+    OrbisNpMatching2WorldId worldId;
+    OrbisNpMatching2LobbyId lobbyId;
+    OrbisNpMatching2RoomId roomId;
+    u64 passwdSlotMask;
+    u64 joinedSlotMask;
+    u16 publicSlots;
+    u16 privateSlots;
+    u16 openPublicSlots;
+    u16 openPrivateSlots;
+    OrbisNpPeerAddressOwned owner;
+    OrbisNpOnlineId ownerOnlineId;
+    std::vector<OrbisNpMatching2RoomGroupInfo> roomGroup;
+    std::vector<OrbisNpMatching2IntAttr> externalSearchIntAttr;
+    std::vector<OrbisNpMatching2BinAttrOwned> externalSearchBinAttr;
+    std::vector<OrbisNpMatching2BinAttrOwned> externalBinAttr;
+
+    std::vector<OrbisNpMatching2BinAttr> externalSearchBinAttrView;
+    std::vector<OrbisNpMatching2BinAttr> externalBinAttrView;
+
+    OrbisNpMatching2RoomDataExternal view();
+};
+
+struct OrbisNpMatching2SearchRoomResponseOwned {
+    OrbisNpMatching2Range range;
+    std::vector<OrbisNpMatching2RoomDataExternalOwned> roomDataExt;
+
+    std::vector<OrbisNpMatching2RoomDataExternal> roomDataExtView;
+    OrbisNpMatching2SearchRoomResponse view();
+};
+
 std::string request_tag(const OrbisNpMatching2CreateJoinRoomRequest&);
 std::string request_tag(const OrbisNpMatching2CreateJoinRoomRequestA&);
+std::string request_tag(const OrbisNpMatching2SearchRoomRequest&);
 void to_json(json& j, const OrbisNpMatching2CreateJoinRoomRequest& req);
 void to_json(json& j, const OrbisNpMatching2CreateJoinRoomRequestA& req);
+void to_json(json& j, const OrbisNpMatching2SearchRoomRequest& req);
 // void from_json(const json& j, OrbisNpMatching2CreateJoinRoomResponse& res);
 void from_json(const json& j, OrbisNpMatching2CreateJoinRoomResponseOwned& res);
-
+void from_json(const json& j, OrbisNpMatching2SearchRoomResponseOwned& res);
 
 }

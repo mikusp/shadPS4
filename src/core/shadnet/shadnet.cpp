@@ -127,6 +127,10 @@ int MatchingContext::CreateJoinRoom(const OrbisNpMatching2CreateJoinRoomRequestA
     return SendRequest(req, optParam);
 }
 
+int MatchingContext::SearchRoom(const OrbisNpMatching2SearchRoomRequest& req, const OrbisNpMatching2RequestOptParam* optParam) {
+    return SendRequest(req, optParam);
+}
+
 void MatchingContext::SetDefaultRequestOptParam(const OrbisNpMatching2RequestOptParam& optParam) {
     std::scoped_lock lk{this->mutex};
     this->optParam = optParam;
@@ -204,6 +208,11 @@ void MatchingContext::HandleResponse(const WsMessage& response) {
             auto resp = response.payload.get<OrbisNpMatching2CreateJoinRoomResponseOwned>();
             auto view = resp.view();
             cb(this->ctxId, response.request_id, ORBIS_NP_MATCHING2_REQUEST_EVENT_CREATE_JOIN_ROOM, ORBIS_OK, &view);
+        }
+        else if (type == "search_room") {
+            auto resp = response.payload.get<OrbisNpMatching2SearchRoomResponseOwned>();
+            auto view = resp.view();
+            cb(this->ctxId, response.request_id, ORBIS_NP_MATCHING2_REQUEST_EVENT_SEARCH_ROOM, ORBIS_OK, &view);
         }
         ///
         else {

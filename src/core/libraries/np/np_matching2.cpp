@@ -615,7 +615,7 @@ int PS4_SYSV_ABI sceNpMatching2GetWorldInfoList(OrbisNpMatching2ContextId ctxId,
         return ORBIS_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
     }
 
-    static OrbisNpMatching2RequestId id = 1;
+    static OrbisNpMatching2RequestId id = 8866;
     *requestId = id++;
 
     if (auto optParam = GetOptParam(requestOpt); optParam) {
@@ -624,7 +624,7 @@ int PS4_SYSV_ABI sceNpMatching2GetWorldInfoList(OrbisNpMatching2ContextId ctxId,
         auto reqIdCopy = *requestId;
         std::scoped_lock lk{g_responses_mutex};
         g_responses.emplace_back([=]() {
-            OrbisNpMatching2World w{nullptr, 0xcafe, 0, 0, 0, 1, 1, {}};
+            OrbisNpMatching2World w{nullptr, 51966, 0, 0, 0, 1, 1, {}};
             OrbisNpMatching2GetWorldInfoListResponse resp{&w, 1};
             LOG_DEBUG(Lib_NpMatching2, "foo {}", fmt::ptr(&resp));
             optParam->callback(ctxId, reqIdCopy,
@@ -760,120 +760,6 @@ int PS4_SYSV_ABI sceNpMatching2LeaveRoom(OrbisNpMatching2ContextId ctxId,
     return ORBIS_OK;
 }
 
-struct OrbisNpMatching2RangeFilter {
-    u32 start;
-    u32 max;
-};
-
-enum class OrbisNpMatching2Operator : u8 {
-    Eq = 1,
-    Ne = 2,
-    Lt = 3,
-    Le = 4,
-    Gt = 5,
-    Ge = 6
-};
-
-struct OrbisNpMatching2IntFilter {
-    OrbisNpMatching2Operator op;
-    u8 pad[7];
-    OrbisNpMatching2IntAttr attr;
-};
-
-struct OrbisNpMatching2BinFilter {
-    OrbisNpMatching2Operator op;
-    u8 pad[7];
-    OrbisNpMatching2BinAttr attr;
-};
-
-struct OrbisNpMatching2SearchRoomRequest {
-    int option;
-    OrbisNpMatching2WorldId worldId;
-    OrbisNpMatching2LobbyId lobbyId;
-    OrbisNpMatching2RangeFilter rangeFilter;
-    OrbisNpMatching2Flags flagAttrs;
-    OrbisNpMatching2Flags flagValues;
-    OrbisNpMatching2IntFilter* intFilter;
-    u64 intFilters;
-    OrbisNpMatching2BinFilter* binFilter;
-    u64 binFilters;
-    OrbisNpMatching2AttributeId* attr;
-    u64 attrs;
-};
-
-struct OrbisNpMatching2Range {
-    u32 start;
-    u32 total;
-    u32 results;
-    u8 pad[4];
-};
-
-struct OrbisNpMatching2RoomDataExternalA {
-    OrbisNpMatching2RoomDataExternalA* next;
-    u16 maxSlot;
-    u16 curMembers;
-    OrbisNpMatching2Flags flags;
-    OrbisNpMatching2ServerId serverId;
-    u8 pad[2];
-    OrbisNpMatching2WorldId worldId;
-    OrbisNpMatching2LobbyId lobbyId;
-    OrbisNpMatching2RoomId roomId;
-    u64 passwdSlotMask;
-    u64 joinedSlotMask;
-    u16 publicSlots;
-    u16 privateSlots;
-    u16 openPublicSlots;
-    u16 openPrivateSlots;
-    Np::OrbisNpPeerAddressA owner;
-    OrbisNpOnlineId ownerOnlineId;
-    OrbisNpMatching2RoomGroup* roomGroup;
-    u64 roomGroups;
-    OrbisNpMatching2IntAttr* externalSearchIntAttr;
-    u64 externalSearchIntAttrs;
-    OrbisNpMatching2BinAttr* externalSearchBinAttr;
-    u64 externalSearchBinAttrs;
-    OrbisNpMatching2BinAttr* externalBinAttr;
-    u64 externalBinAttrs;
-};
-
-struct OrbisNpMatching2RoomDataExternal {
-    OrbisNpMatching2RoomDataExternal* next;
-    u16 maxSlot;
-    u16 curMembers;
-    OrbisNpMatching2Flags flags;
-    OrbisNpMatching2ServerId serverId;
-    u8 pad[2];
-    OrbisNpMatching2WorldId worldId;
-    OrbisNpMatching2LobbyId lobbyId;
-    OrbisNpMatching2RoomId roomId;
-    u64 passwdSlotMask;
-    u64 joinedSlotMask;
-    u16 publicSlots;
-    u16 privateSlots;
-    u16 openPublicSlots;
-    u16 openPrivateSlots;
-    Np::OrbisNpPeerAddress owner;
-    OrbisNpOnlineId ownerOnlineId;
-    OrbisNpMatching2RoomGroup* roomGroup;
-    u64 roomGroups;
-    OrbisNpMatching2IntAttr* externalSearchIntAttr;
-    u64 externalSearchIntAttrs;
-    OrbisNpMatching2BinAttr* externalSearchBinAttr;
-    u64 externalSearchBinAttrs;
-    OrbisNpMatching2BinAttr* externalBinAttr;
-    u64 externalBinAttrs;
-};
-
-struct OrbisNpMatching2SearchRoomResponseA {
-    OrbisNpMatching2Range range;
-    OrbisNpMatching2RoomDataExternalA* roomDataExt;
-};
-
-struct OrbisNpMatching2SearchRoomResponse {
-    OrbisNpMatching2Range range;
-    OrbisNpMatching2RoomDataExternal* roomDataExt;
-};
-
 int PS4_SYSV_ABI sceNpMatching2SearchRoom(OrbisNpMatching2ContextId ctxId,
                                           OrbisNpMatching2SearchRoomRequest* request,
                                           OrbisNpMatching2RequestOptParam* requestOpt,
@@ -887,49 +773,18 @@ int PS4_SYSV_ABI sceNpMatching2SearchRoom(OrbisNpMatching2ContextId ctxId,
         return ORBIS_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
     }
 
-    static OrbisNpMatching2RequestId id = 800;
-    *requestId = id++;
-
-    if (auto optParam = GetOptParam(requestOpt); optParam) {
-        LOG_DEBUG(Lib_NpMatching2, "optParam.timeout = {}, optParam.appId = {}", optParam->timeout,
-                  optParam->appId);
-        std::scoped_lock lk{g_responses_mutex};
-        auto reqIdCopy = *requestId;
-        auto requestCopy = *request;
-        g_responses.emplace_back([=]() {
-            Libraries::Np::OrbisNpOnlineId onlineId{};
-            strcpy(onlineId.data, "shadow");
-            Libraries::Np::OrbisNpId npId {onlineId, 0, {}};
-
-            std::array<OrbisNpMatching2IntAttr, 6> extSearchInt {
-                OrbisNpMatching2IntAttr{0x4c, {}, 0},
-                OrbisNpMatching2IntAttr{0x4d, {}, 0},
-                OrbisNpMatching2IntAttr{0x4e, {}, 4000},
-                OrbisNpMatching2IntAttr{0x4f, {}, 16777217},
-                OrbisNpMatching2IntAttr{0x51, {}, 2},
-                OrbisNpMatching2IntAttr{0x53, {}, 30067},
-            };
-            auto binAttr = base64::decode("AAAAAAAAAAAAAAAAAAAAAAEAAAAAAgEAAAAAAAAAAAAAAAAAAgABAWAARgAEAAEA0AcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABbVw==");
-            std::array<OrbisNpMatching2BinAttr, 1> extBinAttr {
-                OrbisNpMatching2BinAttr{0x55, {}, binAttr.data(), binAttr.size()},
-            };
-            OrbisNpMatching2RoomDataExternal roomData{
-                nullptr, 2,       1,      0,
-                0xac,    {},      0xcafe, 0xbabe,
-                0xdead,  0,       0,      2,
-                0,       1,       0,      {&npId, OrbisNpPlatformType::PS4},
-                onlineId,      nullptr, 0,      extSearchInt.data(),
-                extSearchInt.size(),       nullptr, 0,      extBinAttr.data(),
-                extBinAttr.size(),
-            };
-            // OrbisNpMatching2SearchRoomResponse resp{{0, 1, 1, {}}, &roomData};
-            OrbisNpMatching2SearchRoomResponse resp{{0, 0, 0, {}}, nullptr};
-            LOG_DEBUG(Lib_NpMatching2,
-                      "callback for ORBIS_NP_MATCHING2_REQUEST_EVENT_SEARCH_ROOM");
-            optParam->callback(ctxId, reqIdCopy, ORBIS_NP_MATCHING2_REQUEST_EVENT_SEARCH_ROOM, 0,
-                               &resp, optParam->arg);
-        });
+    MatchingContext* ctx = nullptr;
+    if (auto ret = ctxManager.GetObject(ctxId, &ctx); ret < 0) {
+        return ret;
     }
+
+    if (auto ret = request->Validate(); ret < 0) {
+        return ret;
+    }
+
+    auto id = ctx->SearchRoom(*request, requestOpt);
+
+    *requestId = id;
 
     return ORBIS_OK;
 }

@@ -109,6 +109,59 @@ struct OrbisNpMatching2RoomGroup {
     u32 groupMembers;
 };
 
+struct OrbisNpMatching2RoomGroupInfo {
+    OrbisNpMatching2RoomGroupId id;
+    bool hasPasswd;
+    u8 pad[2];
+    u32 slots;
+    u32 groupMembers;
+};
+
+struct OrbisNpMatching2RangeFilter {
+    u32 start;
+    u32 max;
+};
+
+enum class OrbisNpMatching2Operator : u8 {
+    Eq = 1,
+    Ne = 2,
+    Lt = 3,
+    Le = 4,
+    Gt = 5,
+    Ge = 6
+};
+
+struct OrbisNpMatching2IntFilter {
+    OrbisNpMatching2Operator op;
+    u8 pad[7];
+    OrbisNpMatching2IntAttr attr;
+};
+
+struct OrbisNpMatching2BinFilter {
+    OrbisNpMatching2Operator op;
+    u8 pad[7];
+    OrbisNpMatching2BinAttr attr;
+};
+
+struct OrbisNpMatching2SearchRoomRequest {
+    int option;
+    OrbisNpMatching2WorldId worldId;
+    OrbisNpMatching2LobbyId lobbyId;
+    OrbisNpMatching2RangeFilter rangeFilter;
+    OrbisNpMatching2Flags flagFilter;
+    OrbisNpMatching2Flags flagAttrs;
+    OrbisNpMatching2IntFilter* intFilter;
+    u64 intFilters;
+    OrbisNpMatching2BinFilter* binFilter;
+    u64 binFilters;
+    OrbisNpMatching2AttributeId* attr;
+    u64 attrs;
+
+    int Validate() {
+        return 0;
+    }
+};
+
 struct OrbisNpMatching2RoomDataInternal {
     u16 publicSlots;
     u16 privateSlots;
@@ -171,6 +224,80 @@ struct OrbisNpMatching2CreateJoinRoomResponse {
 struct OrbisNpMatching2CreateJoinRoomResponseA {
     OrbisNpMatching2RoomDataInternal* roomData;
     OrbisNpMatching2RoomMemberDataInternalListA members;
+};
+
+
+struct OrbisNpMatching2RoomDataExternalA {
+    OrbisNpMatching2RoomDataExternalA* next;
+    u16 maxSlot;
+    u16 curMembers;
+    OrbisNpMatching2Flags flags;
+    OrbisNpMatching2ServerId serverId;
+    u8 pad[2];
+    OrbisNpMatching2WorldId worldId;
+    OrbisNpMatching2LobbyId lobbyId;
+    OrbisNpMatching2RoomId roomId;
+    u64 passwdSlotMask;
+    u64 joinedSlotMask;
+    u16 publicSlots;
+    u16 privateSlots;
+    u16 openPublicSlots;
+    u16 openPrivateSlots;
+    Np::OrbisNpPeerAddressA owner;
+    OrbisNpOnlineId ownerOnlineId;
+    OrbisNpMatching2RoomGroupInfo* roomGroup;
+    u64 roomGroups;
+    OrbisNpMatching2IntAttr* externalSearchIntAttr;
+    u64 externalSearchIntAttrs;
+    OrbisNpMatching2BinAttr* externalSearchBinAttr;
+    u64 externalSearchBinAttrs;
+    OrbisNpMatching2BinAttr* externalBinAttr;
+    u64 externalBinAttrs;
+};
+
+struct OrbisNpMatching2RoomDataExternal {
+    OrbisNpMatching2RoomDataExternal* next;
+    u16 maxSlot;
+    u16 curMembers;
+    OrbisNpMatching2Flags flags;
+    OrbisNpMatching2ServerId serverId;
+    u8 pad[2];
+    OrbisNpMatching2WorldId worldId;
+    OrbisNpMatching2LobbyId lobbyId;
+    OrbisNpMatching2RoomId roomId;
+    u64 passwdSlotMask;
+    u64 joinedSlotMask;
+    u16 publicSlots;
+    u16 privateSlots;
+    u16 openPublicSlots;
+    u16 openPrivateSlots;
+    Np::OrbisNpPeerAddress owner;
+    OrbisNpOnlineId ownerOnlineId;
+    OrbisNpMatching2RoomGroupInfo* roomGroup;
+    u64 roomGroups;
+    OrbisNpMatching2IntAttr* externalSearchIntAttr;
+    u64 externalSearchIntAttrs;
+    OrbisNpMatching2BinAttr* externalSearchBinAttr;
+    u64 externalSearchBinAttrs;
+    OrbisNpMatching2BinAttr* externalBinAttr;
+    u64 externalBinAttrs;
+};
+
+struct OrbisNpMatching2Range {
+    u32 start;
+    u32 total;
+    u32 results;
+    u8 pad[4];
+};
+
+struct OrbisNpMatching2SearchRoomResponseA {
+    OrbisNpMatching2Range range;
+    OrbisNpMatching2RoomDataExternalA* roomDataExt;
+};
+
+struct OrbisNpMatching2SearchRoomResponse {
+    OrbisNpMatching2Range range;
+    OrbisNpMatching2RoomDataExternal* roomDataExt;
 };
 
 
