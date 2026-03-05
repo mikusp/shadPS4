@@ -36,6 +36,11 @@ struct WsMessage {
     json payload;
 };
 
+struct WsEvent {
+    std::string type;
+    json ev;
+};
+
 class MatchingContext {
     ix::WebSocket websocket;
     OrbisNpMatching2ContextId ctxId;
@@ -43,26 +48,26 @@ class MatchingContext {
     std::unordered_map<u64, std::tuple<std::string, std::optional<OrbisNpMatching2RequestOptParam>>> pendingRequests;
     std::atomic<u64> reqId{1};
     std::optional<OrbisNpMatching2RequestOptParam> optParam;
+    std::function<void(OrbisNpMatching2ContextId ctxId, OrbisNpMatching2RoomId roomId, OrbisNpMatching2Event ev, const void* data)> roomCallback;
 
 public:
     static void SetContextCallback(OrbisNpMatching2ContextCallback cb, void* userdata);
     int Start(OrbisNpMatching2ContextId ctxId, u64 timeout);
+    void SetRoomCallback(OrbisNpMatching2RoomCallback cb, void* userdata);
 
     int CreateJoinRoom(const OrbisNpMatching2CreateJoinRoomRequest& req, const OrbisNpMatching2RequestOptParam* optParam);
     int CreateJoinRoom(const OrbisNpMatching2CreateJoinRoomRequestA& req, const OrbisNpMatching2RequestOptParam* optParam);
+    int JoinRoom(const OrbisNpMatching2JoinRoomRequest& req, const OrbisNpMatching2RequestOptParam* optParam);
     int SearchRoom(const OrbisNpMatching2SearchRoomRequest& req, const OrbisNpMatching2RequestOptParam* optParam);
+    int SignalingGetPingInfo(const OrbisNpMatching2SignalingGetPingInfoRequest& req, const OrbisNpMatching2RequestOptParam* optParam);
     void SetDefaultRequestOptParam(const OrbisNpMatching2RequestOptParam& optParam);
     // std::future<std::variant<, Error>>
 
 private:
-    using OrbisNpMatching2RequestClosure = PS4_SYSV_ABI void (*)(OrbisNpMatching2ContextId,
-                                                                OrbisNpMatching2RequestId,
-                                                                OrbisNpMatching2Event, int,
-                                                                const void*);
     auto GetRequestCallback(std::optional<OrbisNpMatching2RequestOptParam> requestOptParam);
 
     void HandleResponse(const WsMessage& response);
-    void HandleEvent(const WsMessage& event);
+    void HandleEvent(const WsEvent& event);
     void HandleMessage(const std::string& wsResponse);
 
     template<typename T>

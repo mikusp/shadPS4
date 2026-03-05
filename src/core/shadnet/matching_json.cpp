@@ -2,6 +2,9 @@
 //  SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "matching_json.h"
+
+#include "common/config.h"
+
 #include "cppcodec/base64_rfc4648.hpp"
 
 namespace nlohmann {
@@ -70,6 +73,14 @@ std::string request_tag(const OrbisNpMatching2CreateJoinRoomRequestA&) {
     return "create_join_room_a";
 }
 
+std::string request_tag(const OrbisNpMatching2JoinRoomRequest&) {
+    return "join_room";
+}
+
+std::string request_tag(const OrbisNpMatching2SignalingGetPingInfoRequest&) {
+    return "signaling_get_ping_info";
+}
+
 void to_json(json& j, const OrbisNpMatching2SignalingParam& p) {
     j["type"] = p.type;
     j["flag"] = p.flag;
@@ -97,8 +108,22 @@ void from_json(const json& j, OrbisNpMatching2IntAttr& attr) {
     j.at("value").get_to(attr.attr);
 }
 
+void to_json(json& j, const OrbisNpMatching2SessionPassword& pw) {
+    j = json{{"data", pw.data}};
+}
+
 void to_json(json& j, const OrbisNpMatching2RoomPassword& pw) {
     j = json{{"data", pw.data}};
+}
+
+void from_json(const json& j, OrbisNpMatching2PresenceOptionData& optData) {
+    j.at("data").get_to(optData.data);
+    j.at("len").get_to(optData.len);
+}
+
+void to_json(json& j, const OrbisNpMatching2PresenceOptionData& optData) {
+    j["data"] = optData.data;
+    j["len"] = optData.len;
 }
 
 void to_json(json& j, const OrbisNpMatching2GroupLabel& label) {
@@ -185,6 +210,25 @@ void to_json(json& j, const OrbisNpMatching2BinFilter& f) {
     j["attr"] = f.attr;
 }
 
+void to_json(json& j, const OrbisNpMatching2JoinRoomRequest& req) {
+    j["roomId"] = req.roomId;
+    if (req.roomPasswd) {
+        j["roomPasswd"] = *req.roomPasswd;
+    }
+    if (req.joinGroupLabel) {
+        j["joinGroupLabel"] = *req.joinGroupLabel;
+    }
+    if (req.roomMemberBinInternalAttr && req.roomMemberBinInternalAttrNum > 0) {
+        j["roomMemberBinAttrInternal"] = std::span(req.roomMemberBinInternalAttr, req.roomMemberBinInternalAttrNum);
+    }
+    j["optData"] = req.optData;
+    j["teamId"] = req.teamId;
+    j["flags"] = req.flags;
+    if (req.blockedUser && req.blockedUsers > 0) {
+        j["blockedUser"] = std::span(req.blockedUser, req.blockedUsers);
+    }
+}
+
 void to_json(json& j, const OrbisNpMatching2SearchRoomRequest& req) {
     j["option"] = req.option;
     j["worldId"] = req.worldId;
@@ -201,6 +245,10 @@ void to_json(json& j, const OrbisNpMatching2SearchRoomRequest& req) {
     if (req.attr && req.attrs > 0) {
         j["attrIds"] = std::span(req.attr, req.attrs);
     }
+}
+
+void to_json(json& j, const OrbisNpMatching2SignalingGetPingInfoRequest& req) {
+    j["roomId"] = req.roomId;
 }
 
 void from_json(const json& j, OrbisNpMatching2RoomGroup& group) {
@@ -314,7 +362,11 @@ OrbisNpMatching2RoomDataInternal OrbisNpMatching2RoomDataInternalOwned::view() {
 }
 
 OrbisNpMatching2CreateJoinRoomResponse OrbisNpMatching2CreateJoinRoomResponseOwned::view() {
+    OrbisNpMatching2RoomMemberDataInternal* me = nullptr;
+    OrbisNpMatching2RoomMemberDataInternal* owner = nullptr;
     this->roomDataView = roomData.view();
+    this->membersView.reserve(this->members.size());
+    
     for (auto& member : this->members) {
         std::vector<OrbisNpMatching2RoomMemberBinAttrInternal> attrVec;
         for (auto& attr : member.roomMemberInternalBinAttr) {
@@ -345,6 +397,13 @@ OrbisNpMatching2CreateJoinRoomResponse OrbisNpMatching2CreateJoinRoomResponseOwn
             .roomMemberInternalBinAttrs = this->membersBinAttrs.back().size(),
         };
         this->membersView.push_back(m);
+
+        if ((member.flags & ORBIS_NP_MATCHING2_ROOM_MEMBER_FLAG_ATTR_OWNER) != 0) {
+            owner = &this->membersView.back();
+        }
+        if (strncmp(member.onlineId.data, Config::getUserName().c_str(), sizeof(member.onlineId.data))) {
+            me = &this->membersView.back();
+        }
     }
 
     OrbisNpMatching2RoomMemberDataInternal* next = nullptr;
@@ -358,9 +417,8 @@ OrbisNpMatching2CreateJoinRoomResponse OrbisNpMatching2CreateJoinRoomResponseOwn
         {
             .members = this->membersView.data(),
             .membersNum = this->membersView.size(),
-            // FIX for more than one players
-            .me = this->membersView.data(),
-            .owner = this->membersView.data(),
+            .me = me,
+            .owner = owner,
         }
     };
 }
@@ -438,11 +496,7 @@ OrbisNpMatching2RoomDataExternal OrbisNpMatching2RoomDataExternalOwned::view() {
         .privateSlots = this->privateSlots,
         .openPublicSlots = this->openPublicSlots,
         .openPrivateSlots = this->openPrivateSlots,
-        .owner = {
-            .npId = &this->owner.npId,
-            .platformType = this->owner.platform,
-        },
-        .ownerOnlineId = this->ownerOnlineId,
+        .unk = 0xCAFEDEAD,
         .roomGroup = this->roomGroup.data(),
         .roomGroups = this->roomGroup.size(),
         .externalSearchIntAttr = this->externalSearchIntAttr.data(),
@@ -460,10 +514,60 @@ OrbisNpMatching2SearchRoomResponse OrbisNpMatching2SearchRoomResponseOwned::view
         this->roomDataExtView.push_back(view);
     }
 
+    OrbisNpMatching2RoomDataExternal* next = nullptr;
+    for (auto& x : this->roomDataExtView | std::views::reverse) {
+        x.next = next;
+        next = &x;
+    }
+
     return {
         this->range,
-        {}
+        this->roomDataExtView.data()
     };
+}
+
+OrbisNpMatching2RoomMemberUpdateInfo OrbisNpMatching2RoomMemberUpdateInfoOwned::view() {
+    for (auto& attr : roomMemberDataInternal.roomMemberInternalBinAttr) {
+        OrbisNpMatching2RoomMemberBinAttrInternal a {
+            attr.lastUpdate,
+            {
+                attr.binAttr.id,
+                {},
+                attr.binAttr.data.data(),
+                attr.binAttr.data.size()
+            }
+        };
+        this->memberBinAttrs.push_back(a);
+    }
+
+    OrbisNpMatching2RoomMemberDataInternal m = {
+        .next = nullptr,
+        .joinDateTicks = roomMemberDataInternal.joinDateTicks,
+        .user = {&roomMemberDataInternal.user.npId, roomMemberDataInternal.user.platform},
+        .onlineId = roomMemberDataInternal.onlineId,
+        .memberId = roomMemberDataInternal.memberId,
+        .teamId = roomMemberDataInternal.teamId,
+        .natType = roomMemberDataInternal.natType,
+        .flags = roomMemberDataInternal.flags,
+        .roomGroup = roomMemberDataInternal.roomGroup ? &*roomMemberDataInternal.roomGroup : nullptr,
+        .roomMemberInternalBinAttr = this->memberBinAttrs.data(),
+        .roomMemberInternalBinAttrs = this->memberBinAttrs.size(),
+    };
+    this->roomMemberDataInternalView = m;
+
+    return {
+        &this->roomMemberDataInternalView,
+        this->eventCause,
+        {},
+        this->optData
+    };
+}
+
+void from_json(const json& j, OrbisNpMatching2RoomMemberUpdateInfoOwned& res) {
+    j.at("roomMemberDataInternal").get_to(res.roomMemberDataInternal);
+    j.at("eventCause").get_to(res.eventCause);
+    j.at("optData").get_to(res.optData);
+    j.at("roomId").get_to(res.roomId);
 }
 
 }

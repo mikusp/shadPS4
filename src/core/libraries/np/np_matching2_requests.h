@@ -17,6 +17,10 @@ struct OrbisNpMatching2SignalingParam {
     u8 pad[4];
 };
 
+struct OrbisNpMatching2SessionPassword {
+    u8 data[8];
+};
+
 struct OrbisNpMatching2RoomPassword {
     u8 data[8];
 };
@@ -271,8 +275,7 @@ struct OrbisNpMatching2RoomDataExternal {
     u16 privateSlots;
     u16 openPublicSlots;
     u16 openPrivateSlots;
-    Np::OrbisNpPeerAddress owner;
-    OrbisNpOnlineId ownerOnlineId;
+    ulong unk;
     OrbisNpMatching2RoomGroupInfo* roomGroup;
     u64 roomGroups;
     OrbisNpMatching2IntAttr* externalSearchIntAttr;
@@ -282,6 +285,8 @@ struct OrbisNpMatching2RoomDataExternal {
     OrbisNpMatching2BinAttr* externalBinAttr;
     u64 externalBinAttrs;
 };
+
+static_assert(sizeof(OrbisNpMatching2RoomDataExternal) == 0x88);
 
 struct OrbisNpMatching2Range {
     u32 start;
@@ -300,6 +305,56 @@ struct OrbisNpMatching2SearchRoomResponse {
     OrbisNpMatching2RoomDataExternal* roomDataExt;
 };
 
+struct OrbisNpMatching2SignalingGetPingInfoRequest {
+    OrbisNpMatching2RoomId roomId;
+    u8 pad[16];
+
+    int Validate() {
+        return 0;
+    }
+};
+
+struct OrbisNpMatching2SignalingGetPingInfoResponse {
+    OrbisNpMatching2ServerId serverId;
+    u8 pad[2];
+    OrbisNpMatching2WorldId worldId;
+    OrbisNpMatching2RoomId roomId;
+    u32 pingUs;
+    u8 reserved[20];
+};
+
+
+struct OrbisNpMatching2PresenceOptionData {
+    u8 data[16];
+    u64 len;
+};
+
+struct OrbisNpMatching2JoinRoomRequest {
+    OrbisNpMatching2RoomId roomId;
+    OrbisNpMatching2SessionPassword* roomPasswd;
+    OrbisNpMatching2GroupLabel* joinGroupLabel;
+    OrbisNpMatching2BinAttr* roomMemberBinInternalAttr;
+    u64 roomMemberBinInternalAttrNum;
+    OrbisNpMatching2PresenceOptionData optData;
+    OrbisNpMatching2TeamId teamId;
+    u8 pad[3];
+    OrbisNpMatching2Flags flags;
+    OrbisNpOnlineId* blockedUser;
+    u64 blockedUsers;
+
+    int Validate() {
+        return 0;
+    }
+};
+
+static_assert(sizeof(OrbisNpMatching2JoinRoomRequest) == 0x58);
+
+struct OrbisNpMatching2RoomMemberUpdateInfo {
+    OrbisNpMatching2RoomMemberDataInternal* roomMemberDataInternal;
+    OrbisNpMatching2EventCause eventCause;
+    u8 pad[7];
+    OrbisNpMatching2PresenceOptionData optData;
+};
 
 using OrbisNpMatching2RequestCallback = PS4_SYSV_ABI void (*)(OrbisNpMatching2ContextId,
                                                               OrbisNpMatching2RequestId,

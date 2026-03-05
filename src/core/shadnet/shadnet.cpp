@@ -35,6 +35,11 @@ void from_json(const json& j, WsMessage& msg) {
     }
 }
 
+void from_json(const json& j, WsEvent& ev) {
+    j.at("type").get_to(ev.type);
+    j.at("ev").get_to(ev.ev);
+}
+
 struct NpMatching2ContextEvent {
     OrbisNpMatching2ContextId contextId;
     OrbisNpMatching2Event event;
@@ -127,7 +132,15 @@ int MatchingContext::CreateJoinRoom(const OrbisNpMatching2CreateJoinRoomRequestA
     return SendRequest(req, optParam);
 }
 
+int MatchingContext::JoinRoom(const OrbisNpMatching2JoinRoomRequest& req, const OrbisNpMatching2RequestOptParam* optParam) {
+    return SendRequest(req, optParam);
+}
+
 int MatchingContext::SearchRoom(const OrbisNpMatching2SearchRoomRequest& req, const OrbisNpMatching2RequestOptParam* optParam) {
+    return SendRequest(req, optParam);
+}
+
+int MatchingContext::SignalingGetPingInfo(const OrbisNpMatching2SignalingGetPingInfoRequest& req, const OrbisNpMatching2RequestOptParam* optParam) {
     return SendRequest(req, optParam);
 }
 
@@ -179,6 +192,12 @@ void MatchingContext::SetContextCallback(OrbisNpMatching2ContextCallback cb, voi
     };
 }
 
+void MatchingContext::SetRoomCallback(OrbisNpMatching2RoomCallback cb, void* userdata) {
+    this->roomCallback = [cb, userdata](auto ctxId, auto roomId, auto event, const void* data) {
+        cb(ctxId, roomId, event, data, userdata);
+    };
+}
+
 class Finalizer {
     std::function<void()> f;
 
@@ -214,6 +233,12 @@ void MatchingContext::HandleResponse(const WsMessage& response) {
             auto view = resp.view();
             cb(this->ctxId, response.request_id, ORBIS_NP_MATCHING2_REQUEST_EVENT_SEARCH_ROOM, ORBIS_OK, &view);
         }
+        else if (type == "join_room") {
+            // it's the same response as createjoin
+            auto resp = response.payload.get<OrbisNpMatching2CreateJoinRoomResponseOwned>();
+            auto view = resp.view();
+            cb(this->ctxId, response.request_id, ORBIS_NP_MATCHING2_REQUEST_EVENT_JOIN_ROOM, ORBIS_OK, &view);
+        }
         ///
         else {
             LOG_ERROR(ShadNet, "unhandled response type: {}", type);
@@ -221,19 +246,27 @@ void MatchingContext::HandleResponse(const WsMessage& response) {
     }
 }
 
-void MatchingContext::HandleEvent(const WsMessage& event) {
-
+void MatchingContext::HandleEvent(const WsEvent& event) {
+    if (event.type == "member_joined") {
+        auto evData = event.ev.get<OrbisNpMatching2RoomMemberUpdateInfoOwned>();
+        auto view = evData.view();
+        this->roomCallback(this->ctxId, evData.roomId, ORBIS_NP_MATCHING2_ROOM_EVENT_MEMBER_JOINED, &view);
+    }
+    else {
+        LOG_ERROR(ShadNet, "unhandled event type: {}", event.type);
+    }
 }
 
 void MatchingContext::HandleMessage(const std::string& wsMessage) {
     auto j = json::parse(wsMessage);
-    auto message = j.get<WsMessage>();
 
-    if (message.request_id) {
+    if (j.contains("id")) {
+        auto message = j.get<WsMessage>();
         HandleResponse(message);
     }
     else {
-        HandleEvent(message);
+        auto ev = j.get<WsEvent>();
+        HandleEvent(ev);
     }
 }
 

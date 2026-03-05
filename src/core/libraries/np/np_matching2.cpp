@@ -160,10 +160,6 @@ auto GetOptParam(OrbisNpMatching2RequestOptParam* requestOpt) {
 //     u64 roomMemberInternalBinAttrs;
 // };
 
-struct OrbisNpMatching2RoomMemberUpdateInfo {
-    OrbisNpMatching2RoomMemberDataInternal* roomMemberData;
-    //
-};
 constexpr Libraries::Np::OrbisNpOnlineId g_onlineId = {"shadps4", 0, {}};
 Libraries::Np::OrbisNpId g_npId = {g_onlineId};
 template <bool A>
@@ -636,27 +632,6 @@ int PS4_SYSV_ABI sceNpMatching2GetWorldInfoList(OrbisNpMatching2ContextId ctxId,
     return ORBIS_OK;
 }
 
-struct OrbisNpMatching2PresenceOptionData {
-    u8 data[16];
-    u64 len;
-};
-
-struct OrbisNpMatching2JoinRoomRequest {
-    OrbisNpMatching2RoomId roomId;
-    void* roomPasswd;
-    void* joinGroupLabel;
-    OrbisNpMatching2BinAttr* internalBinAttr;
-    u64 internalBinAttrs;
-    OrbisNpMatching2PresenceOptionData optData;
-    OrbisNpMatching2TeamId teamId;
-    u8 pad[3];
-    OrbisNpMatching2Flags flags;
-    void* blockedUser;
-    u64 blockedUsers;
-};
-
-static_assert(sizeof(OrbisNpMatching2JoinRoomRequest) == 0x58);
-
 // struct OrbisNpMatching2RoomMemberDataInternalList {
 //     OrbisNpMatching2RoomMemberDataInternal* members;
 //     u64 membersNum;
@@ -682,45 +657,18 @@ int PS4_SYSV_ABI sceNpMatching2JoinRoom(OrbisNpMatching2ContextId ctxId,
         return ORBIS_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
     }
 
-    static OrbisNpMatching2RequestId id = 5000;
-    *requestId = id++;
-
-    if (auto optParam = GetOptParam(requestOpt); optParam) {
-        LOG_DEBUG(Lib_NpMatching2, "optParam.timeout = {}, optParam.appId = {}", optParam->timeout,
-                  optParam->appId);
-        std::scoped_lock lk{g_responses_mutex};
-        auto reqIdCopy = *requestId;
-        g_responses.emplace_back([=]() {
-            OrbisNpMatching2RoomDataInternal roomData{
-                8, 0, 7,       0, 8, 0xac,         0xcafe,  0xbabe, 0xdead,
-                0, 0, nullptr, 0, 0, {0, 0, 0, 0}, nullptr, 0};
-            OrbisNpId npId{{"shadPS4", 0, {}}};
-            OrbisNpMatching2RoomMemberDataInternal me{nullptr,
-                                                      0,
-                                                      {
-                                                          &npId,
-                                                          OrbisNpPlatformType::PS4,
-                                                      },
-                                                      npId.handle,
-                                                      {},
-                                                      0xDADE,
-                                                      0xCA,
-                                                      1,
-                                                      0,
-                                                      nullptr,
-                                                      nullptr,
-                                                      0};
-            OrbisNpMatching2JoinRoomResponse resp{&roomData,
-                                                  {
-                                                      &me,
-                                                      1,
-                                                      &me,
-                                                      &me,
-                                                  }};
-            optParam->callback(ctxId, reqIdCopy, ORBIS_NP_MATCHING2_REQUEST_EVENT_JOIN_ROOM, 0,
-                               &resp, optParam->arg);
-        });
+    MatchingContext* ctx = nullptr;
+    if (auto ret = ctxManager.GetObject(ctxId, &ctx); ret < 0) {
+        return ret;
     }
+
+    if (auto ret = request->Validate(); ret < 0) {
+        return ret;
+    }
+
+    auto id = ctx->JoinRoom(*request, requestOpt);
+
+    *requestId = id;
 
     return ORBIS_OK;
 }
@@ -985,8 +933,57 @@ int PS4_SYSV_ABI sceNpMatching2SignalingGetConnectionInfo(OrbisNpMatching2Contex
 
     if (connInfo) {
         if (info == 1) {
-            connInfo->ping = 1000;
+            connInfo->ping = 2500;
         }
+    }
+
+    return ORBIS_OK;
+}
+
+int PS4_SYSV_ABI sceNpMatching2SignalingGetPingInfo(OrbisNpMatching2ContextId ctxId, OrbisNpMatching2SignalingGetPingInfoRequest* request,
+                                                   OrbisNpMatching2RequestOptParam* requestOpt,
+                                                   OrbisNpMatching2RequestId* requestId) {
+    LOG_DEBUG(Lib_NpMatching2, "ctxId = {}, roomId = {}", ctxId, request ? request->roomId : -1);
+
+    if (!g_initialized) {
+        return ORBIS_NP_MATCHING2_ERROR_NOT_INITIALIZED;
+    }
+    if (!request || !requestId) {
+        return ORBIS_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
+    }
+
+    MatchingContext* ctx = nullptr;
+    if (auto ret = ctxManager.GetObject(ctxId, &ctx); ret < 0) {
+        return ret;
+    }
+
+    if (auto ret = request->Validate(); ret < 0) {
+        return ret;
+    }
+
+    // auto id = ctx->SignalingGetPingInfo(*request, requestOpt);
+
+    // *requestId = id;
+
+    static OrbisNpMatching2RequestId id = 27331;
+    *requestId = id++;
+
+    if (auto optParam = GetOptParam(requestOpt); optParam) {
+        LOG_DEBUG(Lib_NpMatching2, "optParam.timeout = {}, optParam.appId = {}", optParam->timeout,
+                  optParam->appId);
+        std::scoped_lock lk{g_responses_mutex};
+        auto reqIdCopy = *requestId;
+        g_responses.emplace_back([=]() {
+            OrbisNpMatching2SignalingGetPingInfoResponse data {
+                .serverId = 1,
+                .worldId = 51966,
+                .roomId = request->roomId,
+                .pingUs = 2500,
+            };
+            optParam->callback(ctxId, reqIdCopy,
+                               ORBIS_NP_MATCHING2_REQUEST_EVENT_SIGNALING_GET_PING_INFO, 0, &data,
+                               optParam->arg);
+        });
     }
 
     return ORBIS_OK;
@@ -1045,6 +1042,8 @@ void RegisterLib(Core::Loader::SymbolsResolver* sym) {
                  sceNpMatching2SignalingGetConnectionStatus);
     LIB_FUNCTION("twVupeaYYrk", "libSceNpMatching2", 1, "libSceNpMatching2",
                  sceNpMatching2SignalingGetConnectionInfo);
+    LIB_FUNCTION("wUmwXZHaX1w", "libSceNpMatching2", 1, "libSceNpMatching2",
+                 sceNpMatching2SignalingGetPingInfo);
 };
 
 } // namespace Libraries::Np::NpMatching2

@@ -112,14 +112,32 @@ struct OrbisNpMatching2SearchRoomResponseOwned {
     OrbisNpMatching2SearchRoomResponse view();
 };
 
+struct OrbisNpMatching2RoomMemberUpdateInfoOwned {
+    OrbisNpMatching2RoomMemberDataInternalOwned roomMemberDataInternal;
+    OrbisNpMatching2EventCause eventCause;
+    u8 pad[7];
+    OrbisNpMatching2PresenceOptionData optData;
+    OrbisNpMatching2RoomId roomId;
+
+    std::vector<OrbisNpMatching2RoomMemberBinAttrInternal> memberBinAttrs;
+    OrbisNpMatching2RoomMemberDataInternal roomMemberDataInternalView;
+
+    OrbisNpMatching2RoomMemberUpdateInfo view();
+};
+
 std::string request_tag(const OrbisNpMatching2CreateJoinRoomRequest&);
 std::string request_tag(const OrbisNpMatching2CreateJoinRoomRequestA&);
+std::string request_tag(const OrbisNpMatching2JoinRoomRequest&);
 std::string request_tag(const OrbisNpMatching2SearchRoomRequest&);
+std::string request_tag(const OrbisNpMatching2SignalingGetPingInfoRequest&);
 void to_json(json& j, const OrbisNpMatching2CreateJoinRoomRequest& req);
 void to_json(json& j, const OrbisNpMatching2CreateJoinRoomRequestA& req);
+void to_json(json& j, const OrbisNpMatching2JoinRoomRequest& req);
 void to_json(json& j, const OrbisNpMatching2SearchRoomRequest& req);
+void to_json(json& j, const OrbisNpMatching2SignalingGetPingInfoRequest& req);
 // void from_json(const json& j, OrbisNpMatching2CreateJoinRoomResponse& res);
 void from_json(const json& j, OrbisNpMatching2CreateJoinRoomResponseOwned& res);
 void from_json(const json& j, OrbisNpMatching2SearchRoomResponseOwned& res);
+void from_json(const json& j, OrbisNpMatching2RoomMemberUpdateInfoOwned& res);
 
 }
