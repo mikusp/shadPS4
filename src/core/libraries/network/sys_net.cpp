@@ -211,11 +211,11 @@ int PS4_SYSV_ABI sys_socketex(const char* name, int family, int type, int protoc
         socket = std::make_shared<PosixSocket>(family, type, protocol);
         break;
     case ORBIS_NET_SOCK_DGRAM_P2P:
+    case ORBIS_NET_SOCK_STREAM_P2P:
         socket = std::make_shared<P2PSocket>(family, type, protocol);
         break;
-    case ORBIS_NET_SOCK_STREAM_P2P:
-        socket = std::make_shared<PosixSocket>(family, ORBIS_NET_SOCK_STREAM, protocol);
-        break;
+        // socket = std::make_shared<PosixSocket>(family, ORBIS_NET_SOCK_STREAM, protocol);
+        // break;
     default:
         UNREACHABLE_MSG("Unknown type {}", type);
     }

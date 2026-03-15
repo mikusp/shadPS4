@@ -35,6 +35,11 @@ using OrbisNpMatching2RoomCallback = PS4_SYSV_ABI void (*)(OrbisNpMatching2Conte
                                                            OrbisNpMatching2Event event,
                                                            const void* data, void* userdata);
 
+using OrbisNpMatching2SignalingCallback =
+    PS4_SYSV_ABI void (*)(OrbisNpMatching2ContextId contextId, OrbisNpMatching2RoomId roomId,
+                          OrbisNpMatching2RoomMemberId roomMemberId, OrbisNpMatching2Event event,
+                          int errorCode, void* userdata);
+
 constexpr int ORBIS_NP_MATCHING2_ERROR_NOT_INITIALIZED = 0x80550c01;
 constexpr int ORBIS_NP_MATCHING2_ERROR_ALREADY_INITIALIZED = 0x80550c02;
 constexpr int ORBIS_NP_MATCHING2_ERROR_CONTEXT_MAX = 0x80550c04;

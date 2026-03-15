@@ -570,4 +570,9 @@ void from_json(const json& j, OrbisNpMatching2RoomMemberUpdateInfoOwned& res) {
     j.at("roomId").get_to(res.roomId);
 }
 
+void from_json(const json& j, SignalingEstablishedInfo& res) {
+    j.at("roomMemberId").get_to(res.roomMemberId);
+    j.at("roomId").get_to(res.roomId);
+}
+
 }

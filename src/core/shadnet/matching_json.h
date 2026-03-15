@@ -125,6 +125,11 @@ struct OrbisNpMatching2RoomMemberUpdateInfoOwned {
     OrbisNpMatching2RoomMemberUpdateInfo view();
 };
 
+struct SignalingEstablishedInfo {
+    OrbisNpMatching2RoomId roomId;
+    OrbisNpMatching2RoomMemberId roomMemberId;
+};
+
 std::string request_tag(const OrbisNpMatching2CreateJoinRoomRequest&);
 std::string request_tag(const OrbisNpMatching2CreateJoinRoomRequestA&);
 std::string request_tag(const OrbisNpMatching2JoinRoomRequest&);
@@ -139,5 +144,6 @@ void to_json(json& j, const OrbisNpMatching2SignalingGetPingInfoRequest& req);
 void from_json(const json& j, OrbisNpMatching2CreateJoinRoomResponseOwned& res);
 void from_json(const json& j, OrbisNpMatching2SearchRoomResponseOwned& res);
 void from_json(const json& j, OrbisNpMatching2RoomMemberUpdateInfoOwned& res);
+void from_json(const json& j, SignalingEstablishedInfo& res);
 
 }

@@ -99,8 +99,8 @@ int MatchingContext::Start(OrbisNpMatching2ContextId ctxId, u64 timeout) {
             catch (const json::exception& e) {
                 LOG_ERROR(ShadNet, "json error when handling message: {}", e.what());
             }
-            catch (...) {
-                LOG_ERROR(ShadNet, "handling message failed");
+            catch (const std::exception& e) {
+                LOG_ERROR(ShadNet, "handling message failed: {}", e.what());
             }
             break;
         }
@@ -198,6 +198,12 @@ void MatchingContext::SetRoomCallback(OrbisNpMatching2RoomCallback cb, void* use
     };
 }
 
+void MatchingContext::SetSignalingCallback(OrbisNpMatching2SignalingCallback cb, void* userdata) {
+    this->signalingCallback = [cb, userdata](auto ctxId, auto roomId, auto roomMemberId, auto event, auto errorCode) {
+        cb(ctxId, roomId, roomMemberId, event, errorCode, userdata);
+    };
+}
+
 class Finalizer {
     std::function<void()> f;
 
@@ -247,10 +253,18 @@ void MatchingContext::HandleResponse(const WsMessage& response) {
 }
 
 void MatchingContext::HandleEvent(const WsEvent& event) {
+    LOG_DEBUG(ShadNet, "handling event {}", event.type);
+
     if (event.type == "member_joined") {
         auto evData = event.ev.get<OrbisNpMatching2RoomMemberUpdateInfoOwned>();
         auto view = evData.view();
         this->roomCallback(this->ctxId, evData.roomId, ORBIS_NP_MATCHING2_ROOM_EVENT_MEMBER_JOINED, &view);
+        LOG_DEBUG(ShadNet, "room callback called");
+    }
+    else if (event.type == "signaling_established") {
+        auto evData = event.ev.get<SignalingEstablishedInfo>();
+        this->signalingCallback(this->ctxId, evData.roomId, evData.roomMemberId, ORBIS_NP_MATCHING2_SIGNALING_EVENT_ESTABLISHED, 0);
+        LOG_DEBUG(ShadNet, "signaling callback called");
     }
     else {
         LOG_ERROR(ShadNet, "unhandled event type: {}", event.type);

@@ -344,7 +344,7 @@ int PS4_SYSV_ABI sceNpMatching2RegisterLobbyEventCallback(
 using OrbisNpMatching2RoomEventCallback = PS4_SYSV_ABI void (*)(OrbisNpMatching2ContextId contextId,
                                                                 OrbisNpMatching2RoomId roomId,
                                                                 OrbisNpMatching2Event event,
-                                                                void* data, void* userdata);
+                                                                const void* data, void* userdata);
 
 std::function<void(const NpMatching2RoomEvent*)> npMatching2RoomCallback = nullptr;
 
@@ -357,9 +357,12 @@ int PS4_SYSV_ABI sceNpMatching2RegisterRoomEventCallback(OrbisNpMatching2Context
         return ORBIS_NP_MATCHING2_ERROR_NOT_INITIALIZED;
     }
 
-    npMatching2RoomCallback = [callback, userdata](auto arg) {
-        callback(arg->contextId, arg->roomId, arg->event, arg->data, userdata);
-    };
+    MatchingContext* ctx = nullptr;
+    if (auto ret = ctxManager.GetObject(ctxId, &ctx); ret < 0) {
+        return ret;
+    }
+
+    ctx->SetRoomCallback(callback, userdata);
 
     return ORBIS_OK;
 }
@@ -386,12 +389,7 @@ int PS4_SYSV_ABI sceNpMatching2RegisterRoomMessageCallback(
     return ORBIS_OK;
 }
 
-using OrbisNpMatching2SignalingCallback =
-    PS4_SYSV_ABI void (*)(OrbisNpMatching2ContextId contextId, OrbisNpMatching2RoomId roomId,
-                          OrbisNpMatching2RoomMemberId roomMemberId, OrbisNpMatching2Event event,
-                          int errorCode, void* userdata);
-
-std::function<void(const NpMatching2SignalingEvent*)> npMatching2SignalingCallback = nullptr;
+// std::function<void(const NpMatching2SignalingEvent*)> npMatching2SignalingCallback = nullptr;
 
 int PS4_SYSV_ABI sceNpMatching2RegisterSignalingCallback(OrbisNpMatching2ContextId ctxId,
                                                          OrbisNpMatching2SignalingCallback callback,
@@ -402,10 +400,12 @@ int PS4_SYSV_ABI sceNpMatching2RegisterSignalingCallback(OrbisNpMatching2Context
         return ORBIS_NP_MATCHING2_ERROR_NOT_INITIALIZED;
     }
 
-    npMatching2SignalingCallback = [callback, userdata](auto arg) {
-        callback(arg->contextId, arg->roomId, arg->roomMemberId, arg->event, arg->errorCode,
-                 userdata);
-    };
+    MatchingContext* ctx = nullptr;
+    if (auto ret = ctxManager.GetObject(ctxId, &ctx); ret < 0) {
+        return ret;
+    }
+
+    ctx->SetSignalingCallback(callback, userdata);
 
     return ORBIS_OK;
 }
@@ -494,12 +494,12 @@ void ProcessEvents() {
                 g_room_messages.pop_front();
             }
         }
-        if (npMatching2SignalingCallback) {
-            while (!g_signaling_events.empty()) {
-                npMatching2SignalingCallback(&g_signaling_events.front());
-                g_signaling_events.pop_front();
-            }
-        }
+        // if (npMatching2SignalingCallback) {
+        //     while (!g_signaling_events.empty()) {
+        //         npMatching2SignalingCallback(&g_signaling_events.front());
+        //         g_signaling_events.pop_front();
+        //     }
+        // }
     }
 
     std::scoped_lock lk{g_responses_mutex};
@@ -909,13 +909,13 @@ int PS4_SYSV_ABI sceNpMatching2SignalingGetConnectionStatus(
     LOG_ERROR(Lib_NpMatching2, "(STUBBED) ctxId = {}, roomId = {}, roomMemberId = {}", ctxId, roomId, roomMemberId);
 
     if (connectionStatus) {
-        *connectionStatus = 2;
-        if (addr) {
-            addr->inaddr_addr = inet_addr("10.0.0.66");
-        }
-        if (port) {
-            *port = 6666;
-        }
+        *connectionStatus = 1;
+        // if (addr) {
+        //     addr->inaddr_addr = inet_addr("10.0.0.66");
+        // }
+        // if (port) {
+        //     *port = 6666;
+        // }
     }
 
     return ORBIS_OK;

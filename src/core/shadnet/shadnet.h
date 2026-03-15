@@ -49,11 +49,13 @@ class MatchingContext {
     std::atomic<u64> reqId{1};
     std::optional<OrbisNpMatching2RequestOptParam> optParam;
     std::function<void(OrbisNpMatching2ContextId ctxId, OrbisNpMatching2RoomId roomId, OrbisNpMatching2Event ev, const void* data)> roomCallback;
+    std::function<void(OrbisNpMatching2ContextId ctxId, OrbisNpMatching2RoomId roomId, OrbisNpMatching2RoomMemberId roomMemberId, OrbisNpMatching2Event ev, int errorCode)> signalingCallback;
 
 public:
     static void SetContextCallback(OrbisNpMatching2ContextCallback cb, void* userdata);
     int Start(OrbisNpMatching2ContextId ctxId, u64 timeout);
     void SetRoomCallback(OrbisNpMatching2RoomCallback cb, void* userdata);
+    void SetSignalingCallback(OrbisNpMatching2SignalingCallback cb, void* userdata);
 
     int CreateJoinRoom(const OrbisNpMatching2CreateJoinRoomRequest& req, const OrbisNpMatching2RequestOptParam* optParam);
     int CreateJoinRoom(const OrbisNpMatching2CreateJoinRoomRequestA& req, const OrbisNpMatching2RequestOptParam* optParam);
