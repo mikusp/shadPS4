@@ -133,15 +133,25 @@ struct SignalingEstablishedInfo {
 std::string request_tag(const OrbisNpMatching2CreateJoinRoomRequest&);
 std::string request_tag(const OrbisNpMatching2CreateJoinRoomRequestA&);
 std::string request_tag(const OrbisNpMatching2JoinRoomRequest&);
+std::string request_tag(const OrbisNpMatching2LeaveRoomRequest&);
 std::string request_tag(const OrbisNpMatching2SearchRoomRequest&);
 std::string request_tag(const OrbisNpMatching2SignalingGetPingInfoRequest&);
+
+template<typename T>
+std::string request_tag_t() {
+    T t;
+    return request_tag(t);
+}
+
 void to_json(json& j, const OrbisNpMatching2CreateJoinRoomRequest& req);
 void to_json(json& j, const OrbisNpMatching2CreateJoinRoomRequestA& req);
 void to_json(json& j, const OrbisNpMatching2JoinRoomRequest& req);
+void to_json(json& j, const OrbisNpMatching2LeaveRoomRequest& req);
 void to_json(json& j, const OrbisNpMatching2SearchRoomRequest& req);
 void to_json(json& j, const OrbisNpMatching2SignalingGetPingInfoRequest& req);
 // void from_json(const json& j, OrbisNpMatching2CreateJoinRoomResponse& res);
 void from_json(const json& j, OrbisNpMatching2CreateJoinRoomResponseOwned& res);
+void from_json(const json& j, OrbisNpMatching2LeaveRoomResponse& res);
 void from_json(const json& j, OrbisNpMatching2SearchRoomResponseOwned& res);
 void from_json(const json& j, OrbisNpMatching2RoomMemberUpdateInfoOwned& res);
 void from_json(const json& j, SignalingEstablishedInfo& res);

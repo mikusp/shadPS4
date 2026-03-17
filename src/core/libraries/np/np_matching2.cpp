@@ -673,11 +673,6 @@ int PS4_SYSV_ABI sceNpMatching2JoinRoom(OrbisNpMatching2ContextId ctxId,
     return ORBIS_OK;
 }
 
-struct OrbisNpMatching2LeaveRoomRequest {
-    OrbisNpMatching2RoomId roomId;
-    OrbisNpMatching2PresenceOptionData optData;
-};
-
 int PS4_SYSV_ABI sceNpMatching2LeaveRoom(OrbisNpMatching2ContextId ctxId,
                                          OrbisNpMatching2LeaveRoomRequest* request,
                                          OrbisNpMatching2RequestOptParam* requestOpt,
@@ -691,21 +686,36 @@ int PS4_SYSV_ABI sceNpMatching2LeaveRoom(OrbisNpMatching2ContextId ctxId,
         return ORBIS_NP_MATCHING2_ERROR_INVALID_ARGUMENT;
     }
 
-    static OrbisNpMatching2RequestId id = 500;
-    *requestId = id++;
-
-    if (auto optParam = GetOptParam(requestOpt); optParam) {
-        LOG_DEBUG(Lib_NpMatching2, "optParam.timeout = {}, optParam.appId = {}", optParam->timeout,
-                  optParam->appId);
-        std::scoped_lock lk{g_responses_mutex};
-        auto reqIdCopy = *requestId;
-        g_responses.emplace_back([=]() {
-            optParam->callback(ctxId, reqIdCopy, ORBIS_NP_MATCHING2_REQUEST_EVENT_LEAVE_ROOM, 0,
-                               nullptr, optParam->arg);
-        });
+    MatchingContext* ctx = nullptr;
+    if (auto ret = ctxManager.GetObject(ctxId, &ctx); ret < 0) {
+        return ret;
     }
 
+    if (auto ret = request->Validate(); ret < 0) {
+        return ret;
+    }
+
+    auto id = ctx->LeaveRoom(*request, requestOpt);
+
+    *requestId = id;
+
     return ORBIS_OK;
+
+    // static OrbisNpMatching2RequestId id = 500;
+    // *requestId = id++;
+
+    // if (auto optParam = GetOptParam(requestOpt); optParam) {
+    //     LOG_DEBUG(Lib_NpMatching2, "optParam.timeout = {}, optParam.appId = {}", optParam->timeout,
+    //               optParam->appId);
+    //     std::scoped_lock lk{g_responses_mutex};
+    //     auto reqIdCopy = *requestId;
+    //     g_responses.emplace_back([=]() {
+    //         optParam->callback(ctxId, reqIdCopy, ORBIS_NP_MATCHING2_REQUEST_EVENT_LEAVE_ROOM, 0,
+    //                            nullptr, optParam->arg);
+    //     });
+    // }
+
+    // return ORBIS_OK;
 }
 
 int PS4_SYSV_ABI sceNpMatching2SearchRoom(OrbisNpMatching2ContextId ctxId,

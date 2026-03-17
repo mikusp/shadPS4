@@ -77,6 +77,10 @@ std::string request_tag(const OrbisNpMatching2JoinRoomRequest&) {
     return "join_room";
 }
 
+std::string request_tag(const OrbisNpMatching2LeaveRoomRequest&) {
+    return "leave_room";
+}
+
 std::string request_tag(const OrbisNpMatching2SignalingGetPingInfoRequest&) {
     return "signaling_get_ping_info";
 }
@@ -227,6 +231,11 @@ void to_json(json& j, const OrbisNpMatching2JoinRoomRequest& req) {
     if (req.blockedUser && req.blockedUsers > 0) {
         j["blockedUser"] = std::span(req.blockedUser, req.blockedUsers);
     }
+}
+
+void to_json(json& j, const OrbisNpMatching2LeaveRoomRequest& req) {
+    j["roomId"] = req.roomId;
+    j["optData"] = req.optData;
 }
 
 void to_json(json& j, const OrbisNpMatching2SearchRoomRequest& req) {
@@ -572,6 +581,10 @@ void from_json(const json& j, OrbisNpMatching2RoomMemberUpdateInfoOwned& res) {
 
 void from_json(const json& j, SignalingEstablishedInfo& res) {
     j.at("roomMemberId").get_to(res.roomMemberId);
+    j.at("roomId").get_to(res.roomId);
+}
+
+void from_json(const json& j, OrbisNpMatching2LeaveRoomResponse& res) {
     j.at("roomId").get_to(res.roomId);
 }
 

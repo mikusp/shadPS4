@@ -60,6 +60,7 @@ public:
     int CreateJoinRoom(const OrbisNpMatching2CreateJoinRoomRequest& req, const OrbisNpMatching2RequestOptParam* optParam);
     int CreateJoinRoom(const OrbisNpMatching2CreateJoinRoomRequestA& req, const OrbisNpMatching2RequestOptParam* optParam);
     int JoinRoom(const OrbisNpMatching2JoinRoomRequest& req, const OrbisNpMatching2RequestOptParam* optParam);
+    int LeaveRoom(const OrbisNpMatching2LeaveRoomRequest& req, const OrbisNpMatching2RequestOptParam* optParam);
     int SearchRoom(const OrbisNpMatching2SearchRoomRequest& req, const OrbisNpMatching2RequestOptParam* optParam);
     int SignalingGetPingInfo(const OrbisNpMatching2SignalingGetPingInfoRequest& req, const OrbisNpMatching2RequestOptParam* optParam);
     void SetDefaultRequestOptParam(const OrbisNpMatching2RequestOptParam& optParam);

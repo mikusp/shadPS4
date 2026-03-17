@@ -349,6 +349,19 @@ struct OrbisNpMatching2JoinRoomRequest {
 
 static_assert(sizeof(OrbisNpMatching2JoinRoomRequest) == 0x58);
 
+struct OrbisNpMatching2LeaveRoomRequest {
+    OrbisNpMatching2RoomId roomId;
+    OrbisNpMatching2PresenceOptionData optData;
+
+    int Validate() {
+        return 0;
+    }
+};
+
+struct OrbisNpMatching2LeaveRoomResponse {
+    OrbisNpMatching2RoomId roomId;
+};
+
 struct OrbisNpMatching2RoomMemberUpdateInfo {
     OrbisNpMatching2RoomMemberDataInternal* roomMemberDataInternal;
     OrbisNpMatching2EventCause eventCause;

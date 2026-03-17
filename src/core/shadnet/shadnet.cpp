@@ -136,6 +136,10 @@ int MatchingContext::JoinRoom(const OrbisNpMatching2JoinRoomRequest& req, const 
     return SendRequest(req, optParam);
 }
 
+int MatchingContext::LeaveRoom(const OrbisNpMatching2LeaveRoomRequest& req, const OrbisNpMatching2RequestOptParam* optParam) {
+    return SendRequest(req, optParam);
+}
+
 int MatchingContext::SearchRoom(const OrbisNpMatching2SearchRoomRequest& req, const OrbisNpMatching2RequestOptParam* optParam) {
     return SendRequest(req, optParam);
 }
@@ -229,21 +233,25 @@ void MatchingContext::HandleResponse(const WsMessage& response) {
     }
     else {
         LOG_DEBUG(ShadNet, "matching request {} response received", response.request_id);
-        if (type == "create_join_room") {
+        if (type == request_tag_t<OrbisNpMatching2CreateJoinRoomRequest>()) {
             auto resp = response.payload.get<OrbisNpMatching2CreateJoinRoomResponseOwned>();
             auto view = resp.view();
             cb(this->ctxId, response.request_id, ORBIS_NP_MATCHING2_REQUEST_EVENT_CREATE_JOIN_ROOM, ORBIS_OK, &view);
         }
-        else if (type == "search_room") {
+        else if (type == request_tag_t<OrbisNpMatching2SearchRoomRequest>()) {
             auto resp = response.payload.get<OrbisNpMatching2SearchRoomResponseOwned>();
             auto view = resp.view();
             cb(this->ctxId, response.request_id, ORBIS_NP_MATCHING2_REQUEST_EVENT_SEARCH_ROOM, ORBIS_OK, &view);
         }
-        else if (type == "join_room") {
+        else if (type == request_tag_t<OrbisNpMatching2JoinRoomRequest>()) {
             // it's the same response as createjoin
             auto resp = response.payload.get<OrbisNpMatching2CreateJoinRoomResponseOwned>();
             auto view = resp.view();
             cb(this->ctxId, response.request_id, ORBIS_NP_MATCHING2_REQUEST_EVENT_JOIN_ROOM, ORBIS_OK, &view);
+        }
+        else if (type == request_tag_t<OrbisNpMatching2LeaveRoomRequest>()) {
+            auto resp = response.payload.get<OrbisNpMatching2LeaveRoomResponse>();
+            cb(this->ctxId, response.request_id, ORBIS_NP_MATCHING2_REQUEST_EVENT_LEAVE_ROOM, ORBIS_OK, &resp);
         }
         ///
         else {
