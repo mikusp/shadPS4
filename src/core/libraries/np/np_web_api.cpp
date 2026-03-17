@@ -24,6 +24,7 @@ const s32 ORBIS_NP_WEBAPI_ERROR_USER_CONTEXT_NOT_FOUND = 0x80552905;
 const s32 ORBIS_NP_WEBAPI_ERROR_REQUEST_NOT_FOUND = 0x80552906;
 const s32 ORBIS_NP_WEBAPI_ERROR_INVALID_CONTENT_PARAMETER = 0x80552908;
 const s32 ORBIS_NP_WEBAPI_ERROR_USER_CONTEXT_ALREADY_EXIST = 0x8055290a;
+const s32 ORBIS_NP_WEBAPI_ERROR_INVALID_HTTP_STATUS_CODE = 0x80552914;
 const s32 ORBIS_NP_WEBAPI_ERROR_LIB_CONTEXT_MAX = 0x8055291a;
 const s32 ORBIS_NP_WEBAPI_ERROR_USER_CONTEXT_MAX = 0x8055291b;
 const s32 ORBIS_NP_WEBAPI_ERROR_AFTER_SEND = 0x8055291e;
@@ -522,10 +523,15 @@ s32 PS4_SYSV_ABI sceNpWebApiGetHttpStatusCode(s64 reqId, u32* statusCode) {
     }
 
     if (req->response) {
-        *statusCode = req->response.value()->status;
-        LOG_ERROR(Lib_NpWebApi, "*statusCode = {}", *statusCode);
+        if (auto& result = req->response.value()) {
+            *statusCode = result->status;
+            LOG_ERROR(Lib_NpWebApi, "*statusCode = {}", *statusCode);
 
-        return ORBIS_OK;
+            return ORBIS_OK;
+        }
+        else {
+            return ORBIS_NP_WEBAPI_ERROR_INVALID_HTTP_STATUS_CODE;
+        }
     } else {
         return -1; // ???
     }

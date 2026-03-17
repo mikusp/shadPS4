@@ -38,7 +38,7 @@ private:
             client.Post("/auth/login", "{\"email\":\"test@example.com\", \"password\":\"foo\"}",
                         "application/json");
 
-        if (res->status == httplib::StatusCode::OK_200) {
+        if (res && res->status == httplib::StatusCode::OK_200) {
             LOG_DEBUG(ShadNet, "{}", res->body);
             auto json = json::parse(res->body);
             for (auto& [key, value] : json.items()) {
@@ -60,7 +60,7 @@ private:
                 }
             }
         } else {
-            LOG_ERROR(ShadNet, "login to shadpsn failed");
+            LOG_ERROR(ShadNet, "login to shadpsn failed: {}", httplib::to_string(res.error()));
         }
     }
 
@@ -69,7 +69,7 @@ private:
         auto res = client.Post("/auth/refresh", "{\"refresh_token\":\"" + refresh_token + "\"}",
                                "application/json");
 
-        if (res->status == httplib::StatusCode::OK_200) {
+        if (res && res->status == httplib::StatusCode::OK_200) {
             auto json = json::parse(res->body);
             for (auto& [key, value] : json.items()) {
                 if (key == "access_token") {
@@ -90,7 +90,7 @@ private:
                 }
             }
         } else {
-            LOG_ERROR(ShadNet, "login to shadpsn failed");
+            LOG_ERROR(ShadNet, "login to shadpsn failed: {}", httplib::to_string(res.error()));
         }
     }
 
