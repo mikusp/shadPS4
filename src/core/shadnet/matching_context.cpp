@@ -6,7 +6,7 @@
 
 #include "core/shadnet/auth_manager.h"
 #include "core/shadnet/matching_json.h"
-#include "core/shadnet/shadnet.h"
+#include "core/shadnet/matching_context.h"
 #include "core/libraries/np/np_manager.h"
 
 namespace Core::ShadNet {
@@ -78,6 +78,7 @@ int MatchingContext::Start(OrbisNpMatching2ContextId ctxId, u64 timeout) {
         switch (msg->type) {
         case ix::WebSocketMessageType::Open: {
             LOG_DEBUG(ShadNet, "ws connection opened for ctxId = {}", this->ctxId);
+            connected = true;
             NpMatching2ContextEvent ev {
                 .contextId = this->ctxId,
                 .event = ORBIS_NP_MATCHING2_CONTEXT_EVENT_STARTED,
@@ -120,6 +121,21 @@ int MatchingContext::Start(OrbisNpMatching2ContextId ctxId, u64 timeout) {
     });
 
     websocket.start();
+
+    std::thread([this, timeoutSec](){
+        std::this_thread::sleep_for(std::chrono::seconds(timeoutSec));
+        if (!this->connected) {
+            this->websocket.stop();
+
+            NpMatching2ContextEvent ev {
+                .contextId = this->ctxId,
+                .event = ORBIS_NP_MATCHING2_CONTEXT_EVENT_START_OVER,
+                .cause = ORBIS_NP_MATCHING2_EVENT_CAUSE_CONTEXT_ACTION,
+                .errorCode = ORBIS_NP_MATCHING2_ERROR_TIMEDOUT
+            };
+            npMatching2ContextCallback(&ev);
+        }
+    }).detach();
 
     return 0;
 }

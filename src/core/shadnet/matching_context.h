@@ -47,6 +47,7 @@ class MatchingContext {
     std::mutex mutex;
     std::unordered_map<u64, std::tuple<std::string, std::optional<OrbisNpMatching2RequestOptParam>>> pendingRequests;
     std::atomic<u64> reqId{1};
+    std::atomic<bool> connected = false;
     std::optional<OrbisNpMatching2RequestOptParam> optParam;
     std::function<void(OrbisNpMatching2ContextId ctxId, OrbisNpMatching2RoomId roomId, OrbisNpMatching2Event ev, const void* data)> roomCallback;
     std::function<void(OrbisNpMatching2ContextId ctxId, OrbisNpMatching2RoomId roomId, OrbisNpMatching2RoomMemberId roomMemberId, OrbisNpMatching2Event ev, int errorCode)> signalingCallback;
@@ -64,7 +65,6 @@ public:
     int SearchRoom(const OrbisNpMatching2SearchRoomRequest& req, const OrbisNpMatching2RequestOptParam* optParam);
     int SignalingGetPingInfo(const OrbisNpMatching2SignalingGetPingInfoRequest& req, const OrbisNpMatching2RequestOptParam* optParam);
     void SetDefaultRequestOptParam(const OrbisNpMatching2RequestOptParam& optParam);
-    // std::future<std::variant<, Error>>
 
 private:
     auto GetRequestCallback(std::optional<OrbisNpMatching2RequestOptParam> requestOptParam);

@@ -264,8 +264,8 @@ endif()
 add_subdirectory(externals)
 include_directories(src)
 
-set(SHAD_NET src/core/shadnet/shadnet.cpp
-             src/core/shadnet/shadnet.h
+set(SHAD_NET src/core/shadnet/matching_context.cpp
+             src/core/shadnet/matching_context.h
              src/core/shadnet/auth_manager.h
              src/core/shadnet/matching_json.cpp
              src/core/shadnet/matching_json.h
