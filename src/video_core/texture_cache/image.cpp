@@ -191,6 +191,44 @@ Image::Image(const Vulkan::Instance& instance_, Vulkan::Scheduler& scheduler_,
 
 Image::~Image() = default;
 
+static bool IsViewTypeCompatible(AmdGpu::ImageType view_type, AmdGpu::ImageType image_type) {
+    switch (view_type) {
+    case AmdGpu::ImageType::Color1D:
+    case AmdGpu::ImageType::Color1DArray:
+        return image_type == AmdGpu::ImageType::Color1D;
+    case AmdGpu::ImageType::Color2D:
+    case AmdGpu::ImageType::Color2DArray:
+    case AmdGpu::ImageType::Color2DMsaa:
+    case AmdGpu::ImageType::Color2DMsaaArray:
+        return image_type == AmdGpu::ImageType::Color2D || image_type == AmdGpu::ImageType::Color3D;
+    case AmdGpu::ImageType::Color3D:
+        return image_type == AmdGpu::ImageType::Color3D;
+    default:
+        UNREACHABLE();
+    }
+}
+
+ImageView* Image::FindViewForTexture(const ImageViewInfo& view_info, bool ensure_guest_samples) {
+    if (ensure_guest_samples && backing->num_samples > 1 != info.num_samples > 1) {
+        SetBackingSamples(info.num_samples);
+    }
+    const auto& view_infos = backing->image_view_infos;
+    const auto it = std::ranges::find(view_infos, view_info);
+    if (it != view_infos.end()) {
+        const auto view_id = backing->image_view_ids[std::distance(view_infos.begin(), it)];
+        return &(*slot_image_views)[view_id];
+    }
+    if (!IsViewTypeCompatible(view_info.type, info.type)) {
+        return nullptr;
+    }
+    else {
+        const auto view_id = slot_image_views->insert(*instance, view_info, *this);
+        backing->image_view_infos.emplace_back(view_info);
+        backing->image_view_ids.emplace_back(view_id);
+        return &(*slot_image_views)[view_id];
+    }
+}
+
 ImageView& Image::FindView(const ImageViewInfo& view_info, bool ensure_guest_samples) {
     if (ensure_guest_samples && backing->num_samples > 1 != info.num_samples > 1) {
         SetBackingSamples(info.num_samples);

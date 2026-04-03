@@ -647,7 +647,35 @@ ImageView& TextureCache::FindTexture(ImageId image_id, const ImageDesc& desc) {
         }
     }
     UpdateImage(image_id);
-    return image.FindView(desc.view_info);
+    if (auto view = image.FindViewForTexture(desc.view_info); view != nullptr) {
+        return *view;
+    }
+    else {
+        LOG_ERROR(Render_Vulkan, "incompatible types for view");
+        if (desc.view_info.type == AmdGpu::ImageType::Color1D && image.info.type == AmdGpu::ImageType::Color2D && instance.IsMaintenance5Supported()) {
+            auto image_info = image.info;
+            image_info.type = AmdGpu::ImageType::Color1D;
+            auto new_image_id = slot_images.insert(instance, scheduler, blit_helper, slot_image_views, image_info);
+            RegisterImage(new_image_id);
+            auto& new_image = slot_images[new_image_id];
+            RefreshImage(new_image);
+            new_image.CopyImage(image);
+            new_image.Transit(vk::ImageLayout::eShaderReadOnlyOptimal,
+                vk::AccessFlagBits2::eShaderRead, {});
+            if (image.binding.is_bound || image.binding.is_target) {
+                image.binding.needs_rebind = 1u;
+            }
+
+            TrackImage(new_image_id);
+            new_image.flags &= ~ImageFlagBits::Dirty;
+            auto new_view = new_image.FindViewForTexture(desc.view_info);
+            ASSERT(new_view != nullptr);
+            return *new_view;
+        }
+        else {
+            UNREACHABLE();
+        }
+    }
 }
 
 ImageView& TextureCache::FindRenderTarget(ImageId image_id, const ImageDesc& desc) {

@@ -115,6 +115,7 @@ struct Image {
         depth_id = image_id;
     }
 
+    ImageView* FindViewForTexture(const ImageViewInfo& view_info, bool ensure_guest_samples = true);
     ImageView& FindView(const ImageViewInfo& view_info, bool ensure_guest_samples = true);
 
     using Barriers = boost::container::small_vector<vk::ImageMemoryBarrier2, 32>;
