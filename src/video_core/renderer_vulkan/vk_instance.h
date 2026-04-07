@@ -260,6 +260,11 @@ public:
         return amd_mixed_attachment_samples;
     }
 
+    /// Returns true if VK_EXT_shader_object is supported
+    bool IsShaderObjectSupported() const {
+        return shader_object;
+    }
+
     /// Returns true when geometry shaders are supported by the device
     bool IsGeometryStageSupported() const {
         return features.geometryShader;
@@ -520,6 +525,7 @@ private:
     bool attachment_feedback_loop{};
     bool supports_memory_budget{};
     bool supports_block_texel_view{};
+    bool shader_object{};
     u64 total_memory_budget{};
     std::vector<size_t> valid_heaps;
 };
