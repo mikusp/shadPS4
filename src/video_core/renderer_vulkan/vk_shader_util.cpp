@@ -266,4 +266,29 @@ vk::ShaderModule CompileSPV(std::span<const u32> code, vk::Device device) {
     return module;
 }
 
+vk::ShaderEXT CompileShaderSPV(std::span<const u32> code, vk::Device device, vk::ShaderStageFlagBits stage, const vk::DescriptorSetLayout* set_layout, const vk::PushConstantRange* push_constants) {
+    ASSERT_MSG(stage == vk::ShaderStageFlagBits::eCompute, "shader object not compute");
+    const vk::ShaderCreateInfoEXT shader_info = {
+        .pNext = nullptr,
+        .flags = {},
+        .stage = stage,
+        .nextStage = {},
+        .codeType = vk::ShaderCodeTypeEXT::eSpirv,
+        .codeSize = code.size() * sizeof(u32),
+        .pCode = code.data(),
+        .pName = "main",
+        .setLayoutCount = 1U,
+        .pSetLayouts = set_layout,
+        .pushConstantRangeCount = 1U,
+        .pPushConstantRanges = push_constants,
+        .pSpecializationInfo = nullptr,
+    };
+
+    auto [result, shader] = device.createShaderEXT(shader_info);
+    ASSERT_MSG(result == vk::Result::eSuccess, "Failed to compile SPIR-V shader: {}",
+            vk::to_string(result));
+    return shader;
+}
+
+
 } // namespace Vulkan

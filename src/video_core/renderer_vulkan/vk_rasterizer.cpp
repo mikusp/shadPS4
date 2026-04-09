@@ -37,7 +37,7 @@ Rasterizer::Rasterizer(const Instance& instance_, Scheduler& scheduler_,
       buffer_cache{instance, scheduler, liverpool_, texture_cache, page_manager},
       texture_cache{instance, scheduler, liverpool_, buffer_cache, page_manager},
       liverpool{liverpool_}, memory{Core::Memory::Instance()},
-      pipeline_cache{instance, scheduler, liverpool} {
+      pipeline_cache{instance, scheduler, liverpool}, shader_object_cache(instance, scheduler, liverpool) {
     if (!EmulatorSettings.IsNullGPU()) {
         liverpool->BindRasterizer(this);
     }
@@ -306,27 +306,51 @@ void Rasterizer::DispatchDirect() {
 
     scheduler.PopPendingOperations();
 
-    const auto& cs_program = liverpool->GetCsRegs();
-    const ComputePipeline* pipeline = pipeline_cache.GetComputePipeline();
-    if (!pipeline) {
-        return;
+    if (EmulatorSettings.IsShaderObjectsEnabled()) {
+        const ShaderObject* shader_object = shader_object_cache.GetComputeShaderObject();
+        if (!shader_object) {
+            return;
+        }
+    
+        const auto& cs = shader_object->GetInfo();
+        const auto& cs_program = liverpool->GetCsRegs();
+        if (ExecuteShaderHLE(cs, liverpool->regs, cs_program, *this)) {
+            return;
+        }
+    
+        if (!BindResources(shader_object)) {
+            return;
+        }
+        scheduler.EndRendering();
+        shader_object->BindResources(set_writes, buffer_barriers, push_data);
+
+        const auto cmdbuf = scheduler.CommandBuffer();
+        cmdbuf.bindShadersEXT({vk::ShaderStageFlagBits::eCompute}, {shader_object->Handle()});
+        cmdbuf.dispatch(cs_program.dim_x, cs_program.dim_y, cs_program.dim_z);
     }
-
-    const auto& cs = pipeline->GetStage(Shader::LogicalStage::Compute);
-    if (ExecuteShaderHLE(cs, liverpool->regs, cs_program, *this)) {
-        return;
+    else {
+        const ComputePipeline* pipeline = pipeline_cache.GetComputePipeline();
+        if (!pipeline) {
+            return;
+        }
+    
+        const auto& cs = pipeline->GetStage(Shader::LogicalStage::Compute);
+        const auto& cs_program = liverpool->GetCsRegs();
+        if (ExecuteShaderHLE(cs, liverpool->regs, cs_program, *this)) {
+            return;
+        }
+    
+        if (!BindResources(pipeline)) {
+            return;
+        }
+    
+        scheduler.EndRendering();
+        pipeline->BindResources(set_writes, buffer_barriers, push_data);
+    
+        const auto cmdbuf = scheduler.CommandBuffer();
+        cmdbuf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline->Handle());
+        cmdbuf.dispatch(cs_program.dim_x, cs_program.dim_y, cs_program.dim_z);
     }
-
-    if (!BindResources(pipeline)) {
-        return;
-    }
-
-    scheduler.EndRendering();
-    pipeline->BindResources(set_writes, buffer_barriers, push_data);
-
-    const auto cmdbuf = scheduler.CommandBuffer();
-    cmdbuf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline->Handle());
-    cmdbuf.dispatch(cs_program.dim_x, cs_program.dim_y, cs_program.dim_z);
 
     ResetBindings();
 }
@@ -336,24 +360,43 @@ void Rasterizer::DispatchIndirect(VAddr address, u32 offset, u32 size) {
 
     scheduler.PopPendingOperations();
 
-    const auto& cs_program = liverpool->GetCsRegs();
-    const ComputePipeline* pipeline = pipeline_cache.GetComputePipeline();
-    if (!pipeline) {
-        return;
+    if (EmulatorSettings.IsShaderObjectsEnabled()) {
+        const ShaderObject* shader_object = shader_object_cache.GetComputeShaderObject();
+        if (!shader_object) {
+            return;
+        }
+    
+        if (!BindResources(shader_object)) {
+            return;
+        }
+        const auto [buffer, base] = buffer_cache.ObtainBuffer(address + offset, size, false);
+    
+        scheduler.EndRendering();
+        shader_object->BindResources(set_writes, buffer_barriers, push_data);
+
+        const auto cmdbuf = scheduler.CommandBuffer();
+        cmdbuf.bindShadersEXT({vk::ShaderStageFlagBits::eCompute}, {shader_object->Handle()});
+        cmdbuf.dispatchIndirect(buffer->Handle(), base);
     }
-
-    if (!BindResources(pipeline)) {
-        return;
+    else {
+        const ComputePipeline* pipeline = pipeline_cache.GetComputePipeline();
+        if (!pipeline) {
+            return;
+        }
+    
+        if (!BindResources(pipeline)) {
+            return;
+        }
+    
+        const auto [buffer, base] = buffer_cache.ObtainBuffer(address + offset, size, false);
+    
+        scheduler.EndRendering();
+        pipeline->BindResources(set_writes, buffer_barriers, push_data);
+    
+        const auto cmdbuf = scheduler.CommandBuffer();
+        cmdbuf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline->Handle());
+        cmdbuf.dispatchIndirect(buffer->Handle(), base);
     }
-
-    const auto [buffer, base] = buffer_cache.ObtainBuffer(address + offset, size, false);
-
-    scheduler.EndRendering();
-    pipeline->BindResources(set_writes, buffer_barriers, push_data);
-
-    const auto cmdbuf = scheduler.CommandBuffer();
-    cmdbuf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline->Handle());
-    cmdbuf.dispatchIndirect(buffer->Handle(), base);
 
     ResetBindings();
 }
@@ -420,6 +463,40 @@ bool Rasterizer::BindResources(const Pipeline* pipeline) {
     return true;
 }
 
+bool Rasterizer::BindResources(const ShaderObject* shader_object) {
+    if (IsComputeImageCopy(shader_object) || IsComputeMetaClear(shader_object) ||
+        IsComputeImageClear(shader_object)) {
+        return false;
+    }
+
+    set_writes.clear();
+    buffer_barriers.clear();
+    buffer_infos.clear();
+    image_infos.clear();
+
+    bool uses_dma = false;
+
+    // Bind resource buffers and textures.
+    Shader::Backend::Bindings binding{};
+    push_data = MakeUserData(liverpool->regs);
+    const auto& stage = shader_object->GetInfo();
+    stage.PushUd(binding, push_data);
+    BindBuffers(stage, binding, push_data);
+    BindTextures(stage, binding);
+    uses_dma |= stage.uses_dma;
+
+    if (uses_dma) {
+        // We only use fault buffer for DMA right now.
+        Common::RecursiveSharedLock lock{mapped_ranges_mutex};
+        for (auto& range : mapped_ranges) {
+            buffer_cache.SynchronizeBuffersInRange(range.lower(), range.upper() - range.lower());
+        }
+        fault_process_pending = true;
+    }
+
+    return true;
+}
+
 bool Rasterizer::IsComputeMetaClear(const Pipeline* pipeline) {
     if (!pipeline->IsCompute()) {
         return false;
@@ -430,6 +507,43 @@ bool Rasterizer::IsComputeMetaClear(const Pipeline* pipeline) {
     // intended to be consumed and in such rare cases (e.g. HTile introspection, CRAA) we
     // will need its full emulation anyways.
     const auto& info = pipeline->GetStage(Shader::LogicalStage::Compute);
+
+    // Assume if a shader reads metadata, it is a copy shader.
+    for (const auto& desc : info.buffers) {
+        const VAddr address = desc.GetSharp(info).base_address;
+        if (!desc.IsSpecial() && !desc.is_written && texture_cache.IsMeta(address)) {
+            return false;
+        }
+    }
+
+    // Metadata surfaces are tiled and thus need address calculation to be written properly.
+    // If a shader wants to encode HTILE, for example, from a depth image it will have to compute
+    // proper tile address from dispatch invocation id. This address calculation contains an xor
+    // operation so use it as a heuristic for metadata writes that are probably not clears.
+    if (!info.has_bitwise_xor) {
+        // Assume if a shader writes metadata without address calculation, it is a clear shader.
+        for (const auto& desc : info.buffers) {
+            const VAddr address = desc.GetSharp(info).base_address;
+            if (!desc.IsSpecial() && desc.is_written && texture_cache.ClearMeta(address)) {
+                // Assume all slices were updates
+                LOG_TRACE(Render_Vulkan, "Metadata update skipped");
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool Rasterizer::IsComputeMetaClear(const ShaderObject* shader_object) {
+    if (!shader_object->IsCompute()) {
+        return false;
+    }
+
+    // Most of the time when a metadata is updated with a shader it gets cleared. It means
+    // we can skip the whole dispatch and update the tracked state instead. Also, it is not
+    // intended to be consumed and in such rare cases (e.g. HTile introspection, CRAA) we
+    // will need its full emulation anyways.
+    const auto& info = shader_object->GetInfo();
 
     // Assume if a shader reads metadata, it is a copy shader.
     for (const auto& desc : info.buffers) {
@@ -519,6 +633,68 @@ bool Rasterizer::IsComputeImageCopy(const Pipeline* pipeline) {
     return true;
 }
 
+bool Rasterizer::IsComputeImageCopy(const ShaderObject* shader_object) {
+    if (!shader_object->IsCompute()) {
+        return false;
+    }
+
+    // Ensure shader only has 2 bound buffers
+    const auto& cs_pgm = liverpool->GetCsRegs();
+    const auto& info = shader_object->GetInfo();
+    if (cs_pgm.num_thread_x.full != 64 || info.buffers.size() != 2 || !info.images.empty()) {
+        return false;
+    }
+
+    // Those 2 buffers must both be formatted. One must be source and another destination.
+    const auto& desc0 = info.buffers[0];
+    const auto& desc1 = info.buffers[1];
+    if (!desc0.is_formatted || !desc1.is_formatted || desc0.is_written == desc1.is_written) {
+        return false;
+    }
+
+    // Buffers must have the same size and each thread of the dispatch must copy 1 dword of data
+    const AmdGpu::Buffer buf0 = desc0.GetSharp(info);
+    const AmdGpu::Buffer buf1 = desc1.GetSharp(info);
+    if (buf0.GetSize() != buf1.GetSize() || cs_pgm.dim_x != (buf0.GetSize() / 256)) {
+        return false;
+    }
+
+    // Find images the buffer alias
+    const auto image0_id = texture_cache.FindImageFromRange(buf0.base_address, buf0.GetSize());
+    if (!image0_id) {
+        return false;
+    }
+    const auto image1_id =
+        texture_cache.FindImageFromRange(buf1.base_address, buf1.GetSize(), false);
+    if (!image1_id) {
+        return false;
+    }
+
+    // Image copy must be valid
+    VideoCore::Image& image0 = texture_cache.GetImage(image0_id);
+    VideoCore::Image& image1 = texture_cache.GetImage(image1_id);
+    if (image0.info.guest_size != image1.info.guest_size ||
+        image0.info.pitch != image1.info.pitch || image0.info.guest_size != buf0.GetSize() ||
+        image0.info.num_bits != image1.info.num_bits) {
+        return false;
+    }
+
+    // Perform image copy
+    VideoCore::Image& src_image = desc0.is_written ? image1 : image0;
+    VideoCore::Image& dst_image = desc0.is_written ? image0 : image1;
+    if (instance.IsMaintenance8Supported() ||
+        src_image.info.props.is_depth == dst_image.info.props.is_depth) {
+        dst_image.CopyImage(src_image);
+    } else {
+        const auto& copy_buffer =
+            buffer_cache.GetUtilityBuffer(VideoCore::MemoryUsage::DeviceLocal);
+        dst_image.CopyImageWithBuffer(src_image, copy_buffer.Handle(), 0);
+    }
+    dst_image.flags |= VideoCore::ImageFlagBits::GpuModified;
+    dst_image.flags &= ~VideoCore::ImageFlagBits::Dirty;
+    return true;
+}
+
 bool Rasterizer::IsComputeImageClear(const Pipeline* pipeline) {
     if (!pipeline->IsCompute()) {
         return false;
@@ -527,6 +703,66 @@ bool Rasterizer::IsComputeImageClear(const Pipeline* pipeline) {
     // Ensure shader only has 2 bound buffers
     const auto& cs_pgm = liverpool->GetCsRegs();
     const auto& info = pipeline->GetStage(Shader::LogicalStage::Compute);
+    if (cs_pgm.num_thread_x.full != 64 || info.buffers.size() != 2 || !info.images.empty()) {
+        return false;
+    }
+
+    // From those 2 buffers, first must hold the clear vector and second the image being cleared
+    const auto& desc0 = info.buffers[0];
+    const auto& desc1 = info.buffers[1];
+    if (desc0.is_formatted || !desc1.is_formatted || desc0.is_written || !desc1.is_written) {
+        return false;
+    }
+
+    // First buffer must have size of vec4 and second the size of a single layer
+    const AmdGpu::Buffer buf0 = desc0.GetSharp(info);
+    const AmdGpu::Buffer buf1 = desc1.GetSharp(info);
+    const u32 buf1_bpp = AmdGpu::NumBitsPerBlock(buf1.GetDataFmt());
+    if (buf0.GetSize() != 16 || (cs_pgm.dim_x * 128ULL * (buf1_bpp / 8)) != buf1.GetSize()) {
+        return false;
+    }
+
+    // Find image the buffer alias
+    const auto image1_id =
+        texture_cache.FindImageFromRange(buf1.base_address, buf1.GetSize(), false);
+    if (!image1_id) {
+        return false;
+    }
+
+    // Image clear must be valid
+    VideoCore::Image& image1 = texture_cache.GetImage(image1_id);
+    if (image1.info.guest_size != buf1.GetSize() || image1.info.num_bits != buf1_bpp ||
+        image1.info.props.is_depth) {
+        return false;
+    }
+
+    // Perform image clear
+    const float* values = reinterpret_cast<float*>(buf0.base_address);
+    const vk::ClearValue clear = {
+        .color = {.float32 = std::array<float, 4>{values[0], values[1], values[2], values[3]}},
+    };
+    const VideoCore::SubresourceRange range = {
+        .base =
+            {
+                .level = 0,
+                .layer = 0,
+            },
+        .extent = image1.info.resources,
+    };
+    image1.Clear(clear, range);
+    image1.flags |= VideoCore::ImageFlagBits::GpuModified;
+    image1.flags &= ~VideoCore::ImageFlagBits::Dirty;
+    return true;
+}
+
+bool Rasterizer::IsComputeImageClear(const ShaderObject* shader_object) {
+    if (!shader_object->IsCompute()) {
+        return false;
+    }
+
+    // Ensure shader only has 2 bound buffers
+    const auto& cs_pgm = liverpool->GetCsRegs();
+    const auto& info = shader_object->GetInfo();
     if (cs_pgm.num_thread_x.full != 64 || info.buffers.size() != 2 || !info.images.empty()) {
         return false;
     }

@@ -126,7 +126,7 @@ void DebugStateImpl::PushQueueDump(QueueDump dump) {
             if (type == 2) {
                 data = data.subspan(1);
             } else if (type != 3) {
-                UNREACHABLE();
+                UNREACHABLE_MSG("unsupported type {}", type.Value());
             }
             const AmdGpu::PM4ItOpcode opcode = header->opcode;
             if (Core::Devtools::Widget::IsDrawCall(opcode)) {

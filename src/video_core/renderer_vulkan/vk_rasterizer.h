@@ -8,6 +8,7 @@
 #include "video_core/buffer_cache/buffer_cache.h"
 #include "video_core/page_manager.h"
 #include "video_core/renderer_vulkan/vk_pipeline_cache.h"
+#include "video_core/renderer_vulkan/vk_shader_object_cache.h"
 #include "video_core/texture_cache/texture_cache.h"
 
 namespace AmdGpu {
@@ -102,6 +103,7 @@ private:
                      Shader::PushData& push_data);
     void BindTextures(const Shader::Info& stage, Shader::Backend::Bindings& binding);
     bool BindResources(const Pipeline* pipeline);
+    bool BindResources(const ShaderObject* pipeline);
 
     void ResetBindings() {
         for (auto& image_id : bound_images) {
@@ -113,6 +115,10 @@ private:
     bool IsComputeMetaClear(const Pipeline* pipeline);
     bool IsComputeImageCopy(const Pipeline* pipeline);
     bool IsComputeImageClear(const Pipeline* pipeline);
+
+    bool IsComputeMetaClear(const ShaderObject* shader_object);
+    bool IsComputeImageCopy(const ShaderObject* shader_object);
+    bool IsComputeImageClear(const ShaderObject* shader_object);
 
 private:
     friend class VideoCore::BufferCache;
@@ -127,6 +133,7 @@ private:
     boost::icl::interval_set<VAddr> mapped_ranges;
     Common::SharedFirstMutex mapped_ranges_mutex;
     PipelineCache pipeline_cache;
+    ShaderObjectCache shader_object_cache;
 
     using RenderTargetInfo = std::pair<VideoCore::ImageId, VideoCore::TextureCache::ImageDesc>;
     std::array<RenderTargetInfo, AmdGpu::NUM_COLOR_BUFFERS> cb_descs;

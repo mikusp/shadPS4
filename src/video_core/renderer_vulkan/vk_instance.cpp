@@ -8,6 +8,7 @@
 #include "common/assert.h"
 #include "common/debug.h"
 #include "common/types.h"
+#include "core/emulator_settings.h"
 #include "imgui/renderer/imgui_core.h"
 #include "sdl_window.h"
 #include "video_core/renderer_vulkan/liverpool_to_vk.h"
@@ -255,12 +256,14 @@ bool Instance::CreateDevice() {
         }
     }
     depth_range_unrestricted = add_extension(VK_EXT_DEPTH_RANGE_UNRESTRICTED_EXTENSION_NAME);
-    dynamic_state_3 = add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME);
-    if (dynamic_state_3) {
-        dynamic_state_3_features =
-            feature_chain.get<vk::PhysicalDeviceExtendedDynamicState3FeaturesEXT>();
-        LOG_INFO(Render_Vulkan, "- extendedDynamicState3ColorWriteMask: {}",
-                 dynamic_state_3_features.extendedDynamicState3ColorWriteMask);
+    if (!EmulatorSettings.IsRenderdocEnabled()) {
+        dynamic_state_3 = add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME);
+        if (dynamic_state_3) {
+            dynamic_state_3_features =
+                feature_chain.get<vk::PhysicalDeviceExtendedDynamicState3FeaturesEXT>();
+            LOG_INFO(Render_Vulkan, "- extendedDynamicState3ColorWriteMask: {}",
+                     dynamic_state_3_features.extendedDynamicState3ColorWriteMask);
+        }
     }
     robustness2 = add_extension(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME);
     if (robustness2) {
