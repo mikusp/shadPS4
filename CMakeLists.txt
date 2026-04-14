@@ -35,7 +35,7 @@ endif()
 
 option(ENABLE_DISCORD_RPC "Enable the Discord RPC integration" ON)
 option(ENABLE_UPDATER "Enables the options to updater" ON)
-option(ENABLE_TESTS "Build unit tests (requires GTest)" OFF)
+option(ENABLE_TESTS "Build unit tests (requires GTest)" ON)
 
 # First, determine whether to use CMAKE_OSX_ARCHITECTURES or CMAKE_SYSTEM_PROCESSOR.
 if (APPLE AND CMAKE_OSX_ARCHITECTURES)
@@ -814,6 +814,8 @@ set(CORE src/core/aerolib/stubs.cpp
          src/core/file_sys/devices/random_device.h
          src/core/file_sys/devices/rng_device.cpp
          src/core/file_sys/devices/rng_device.h
+         src/core/file_sys/devices/sbl_srv_device.cpp
+         src/core/file_sys/devices/sbl_srv_device.h
          src/core/file_sys/devices/urandom_device.cpp
          src/core/file_sys/devices/urandom_device.h
          src/core/file_sys/devices/srandom_device.cpp
@@ -1144,8 +1146,6 @@ set(EMULATOR src/emulator.cpp
              src/sdl_window.cpp
 )
 
-if(NOT ENABLE_TESTS)
-
 add_executable(shadps4
     ${AUDIO_CORE}
     ${IMGUI}
@@ -1319,7 +1319,7 @@ endif()
 # Install rules
 install(TARGETS shadps4 BUNDLE DESTINATION .)
 
-else()
+if(ENABLE_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()

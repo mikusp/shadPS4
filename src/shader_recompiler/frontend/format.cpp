@@ -4383,7 +4383,7 @@ InstFormat InstructionFormat(InstEncoding encoding, uint32_t opcode) {
     case InstEncoding::VOPC:
         return InstructionFormatVOPC[opcode];
     case InstEncoding::VOP3:
-        return InstructionFormatVOP3[opcode];
+        return InstructionFormatVOP3.at(opcode);
     case InstEncoding::VOP3P:
         return InstructionFormatVOP3P[opcode];
     case InstEncoding::EXP:

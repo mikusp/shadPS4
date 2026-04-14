@@ -157,6 +157,14 @@ Id EmitFPSaturate64(EmitContext& ctx, Id value) {
     return ctx.OpFClamp(ctx.F64[1], value, zero, one);
 }
 
+Id EmitFPSign32(EmitContext& ctx, Id value) {
+    return ctx.OpFSign(ctx.F32[1], value);
+}
+
+Id EmitFPSign64(EmitContext& ctx, Id value) {
+    return ctx.OpFSign(ctx.F64[1], value);
+}
+
 Id EmitFPClamp32(EmitContext& ctx, Id value, Id min_value, Id max_value) {
     return ctx.OpFClamp(ctx.F32[1], value, min_value, max_value);
 }

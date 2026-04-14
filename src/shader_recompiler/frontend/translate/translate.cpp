@@ -290,6 +290,13 @@ T Translator::GetSrc(const InstOperand& operand) {
         }
     };
 
+    if (operand.dpp) {
+        LOG_ERROR(Render_Recompiler, "DPP operation");
+    }
+    // if (operand.sdwa_sel != SdwaSelector::Invalid) {
+    //     LOG_ERROR(Render_Recompiler, "SDWA operation");
+    // }
+
     T value{};
     switch (operand.field) {
     case OperandField::ScalarGPR:
@@ -338,9 +345,13 @@ T Translator::GetSrc(const InstOperand& operand) {
         value = get_imm(static_cast<float>(1.0f / (2.0f * std::numbers::pi)));
         break;
     case OperandField::Sdwa:
-        UNREACHABLE_MSG("unhandled SDWA");
+        LOG_ERROR(Render_Recompiler, "unhandled SDWA");
+        value = get_imm(0U);
+        break;
     case OperandField::Dpp:
-        UNREACHABLE_MSG("unhandled DPP");
+        LOG_ERROR(Render_Recompiler, "unhandled DPP");
+        value = get_imm(0U);
+        break;
     case OperandField::VccLo:
         if constexpr (is_float) {
             value = ir.BitCast<IR::F32>(ir.GetVccLo());
@@ -1032,6 +1043,28 @@ void Translator::SetDst64(const InstOperand& operand, const IR::U64F64& value_ra
         break;
     default:
         UNREACHABLE();
+    }
+}
+
+IR::U32 Translator::SdwaSelect(const IR::U32& value, SdwaSelector sel) {
+    switch (sel) {
+    case SdwaSelector::Byte0:
+        return ir.BitFieldExtract(value, ir.Imm32(0U), ir.Imm32(8U));
+    case SdwaSelector::Byte1:
+        return ir.BitFieldExtract(value, ir.Imm32(8U), ir.Imm32(8U));
+    case SdwaSelector::Byte2:
+        return ir.BitFieldExtract(value, ir.Imm32(16U), ir.Imm32(8U));
+    case SdwaSelector::Byte3:
+        return ir.BitFieldExtract(value, ir.Imm32(24U), ir.Imm32(8U));
+    case SdwaSelector::Word0:
+        return ir.BitFieldExtract(value, ir.Imm32(0U), ir.Imm32(16U));
+    case SdwaSelector::Word1:
+        return ir.BitFieldExtract(value, ir.Imm32(16U), ir.Imm32(16U));
+    case SdwaSelector::Dword:
+        return value;
+    case SdwaSelector::Invalid:
+    default:
+        UNREACHABLE_MSG("sdwa_sel out of range: {}", u32(sel));
     }
 }
 

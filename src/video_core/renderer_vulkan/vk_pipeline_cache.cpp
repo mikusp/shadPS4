@@ -233,6 +233,9 @@ const Shader::RuntimeInfo& PipelineCache::BuildRuntimeInfo(Stage stage, LogicalS
         const auto& cs_pgm = liverpool->GetCsRegs();
         info.num_user_data = cs_pgm.settings.num_user_regs;
         info.num_allocated_vgprs = cs_pgm.settings.num_vgprs * 4;
+        // LOG_ERROR(Render_Vulkan,
+        //           "compute float control: dx10_clamp {}, ieee_mode {}, fp16_ovfl? {}",
+        //           cs_pgm.settings.dx10_clamp, cs_pgm.settings.ieee_mode, cs_pgm.settings.fp16_ovfl);
         info.cs_info.workgroup_size = {cs_pgm.num_thread_x.full, cs_pgm.num_thread_y.full,
                                        cs_pgm.num_thread_z.full};
         info.cs_info.tgid_enable = {cs_pgm.IsTgidEnabled(0), cs_pgm.IsTgidEnabled(1),

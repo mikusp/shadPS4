@@ -6,6 +6,8 @@
 #include "core/libraries/kernel/process.h"
 #include "shader_recompiler/frontend/decode.h"
 
+#define MAGIC_ENUM_RANGE_MIN 0
+#define MAGIC_ENUM_RANGE_MAX 2142
 #include <magic_enum/magic_enum.hpp>
 
 namespace Shader::Gcn {
@@ -136,6 +138,9 @@ GcnInst GcnDecodeContext::decodeInstruction(GcnCodeSlice& code) {
         decodeDataParallelPrimitive(encoding, code);
     }
 
+    // LOG_DEBUG(Render_Recompiler, "instruction {} ({})",
+    // magic_enum::enum_name(m_instruction.opcode), u32(m_instruction.opcode));
+
     repairOperandType();
     return m_instruction;
 }
@@ -262,6 +267,7 @@ uint32_t GcnDecodeContext::mapEncodingOp(InstEncoding encoding, Opcode opcode) {
 
 void GcnDecodeContext::updateInstructionMeta(InstEncoding encoding) {
     uint32_t encodingOp = mapEncodingOp(encoding, m_instruction.opcode);
+    // LOG_DEBUG(Render_Recompiler, "encodingOp: {}", encodingOp);
     InstFormat instFormat = InstructionFormat(encoding, encodingOp);
 
     ASSERT_MSG(instFormat.src_type != ScalarType::Undefined &&
@@ -773,6 +779,7 @@ void GcnDecodeContext::decodeInstructionVOP3(uint64_t hexInstruction) {
     m_instruction.dst[0].code = vdst;
 
     OpcodeVOP3 vop3Op = static_cast<OpcodeVOP3>(op);
+    // LOG_DEBUG(Render_Recompiler, "OpcodeVOP3: {}", u32(vop3Op));
     if (IsVop3BEncoding(m_instruction.opcode)) {
         m_instruction.dst[1].field = getOperandField(sdst);
         m_instruction.dst[1].type = ScalarType::Uint64;

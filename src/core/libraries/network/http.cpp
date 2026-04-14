@@ -704,7 +704,7 @@ int PS4_SYSV_ABI sceHttpUnsetEpoll() {
 int PS4_SYSV_ABI sceHttpUriBuild(char* out, u64* require, u64 prepare,
                                  const OrbisHttpUriElement* srcElement, u32 option) {
     LOG_ERROR(Lib_Http, "(STUBBED) called");
-    return ORBIS_OK;
+    return -1;
 }
 
 int PS4_SYSV_ABI sceHttpUriCopy() {

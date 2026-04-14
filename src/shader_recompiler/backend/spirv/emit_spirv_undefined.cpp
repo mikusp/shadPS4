@@ -8,6 +8,7 @@ namespace Shader::Backend::SPIRV {
 
 Id EmitUndefU1(EmitContext& ctx) {
     return ctx.OpUndef(ctx.U1[1]);
+    // UNREACHABLE_MSG("SPIR-V Instruction");
 }
 
 Id EmitUndefU8(EmitContext&) {

@@ -127,6 +127,7 @@ void EmitContext::DefineArithmeticTypes() {
     }
     F32[1] = Name(TypeFloat(32), "f32_id");
     S32[1] = Name(TypeSInt(32), "i32_id");
+    U16V[1] = U16;
     U32[1] = Name(TypeUInt(32), "u32_id");
     U64 = Name(TypeUInt(64), "u64_id");
 
@@ -139,6 +140,9 @@ void EmitContext::DefineArithmeticTypes() {
         }
         F32[i] = Name(TypeVector(F32[1], i), fmt::format("f32vec{}_id", i));
         S32[i] = Name(TypeVector(S32[1], i), fmt::format("i32vec{}_id", i));
+        if (i != 1) {
+            U16V[i] = Name(TypeVector(U16V[1], i), fmt::format("u16vec{}_id", i));
+        }
         U32[i] = Name(TypeVector(U32[1], i), fmt::format("u32vec{}_id", i));
         U1[i] = Name(TypeVector(U1[1], i), fmt::format("bvec{}_id", i));
     }

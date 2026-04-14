@@ -14,6 +14,10 @@ template <typename T>
 [[nodiscard]] T Arg(const IR::Value& value) {
     if constexpr (std::is_same_v<T, bool>) {
         return value.U1();
+    } else if constexpr (std::is_same_v<T, u16>) {
+        return value.U16();
+    } else if constexpr (std::is_same_v<T, s16>) {
+        return static_cast<s16>(value.U16());
     } else if constexpr (std::is_same_v<T, u32>) {
         return value.U32();
     } else if constexpr (std::is_same_v<T, s32>) {
@@ -24,6 +28,8 @@ template <typename T>
         return value.U64();
     } else if constexpr (std::is_same_v<T, s64>) {
         return static_cast<s64>(value.U64());
+    } else {
+        static_assert(false, "unhandled type");
     }
 }
 
@@ -435,11 +441,17 @@ void ConstantPropagation(IR::Block& block, IR::Inst& inst) {
         return FoldLogicalOr(inst);
     case IR::Opcode::LogicalNot:
         return FoldLogicalNot(inst);
+    case IR::Opcode::SLessThan16:
+        FoldWhenAllImmediates(inst, [](s16 a, s16 b) { return a < b; });
+        return;
     case IR::Opcode::SLessThan32:
         FoldWhenAllImmediates(inst, [](s32 a, s32 b) { return a < b; });
         return;
     case IR::Opcode::SLessThan64:
         FoldWhenAllImmediates(inst, [](s64 a, s64 b) { return a < b; });
+        return;
+    case IR::Opcode::ULessThan16:
+        FoldWhenAllImmediates(inst, [](u16 a, u16 b) { return a < b; });
         return;
     case IR::Opcode::ULessThan32:
         FoldWhenAllImmediates(inst, [](u32 a, u32 b) { return a < b; });
@@ -447,11 +459,17 @@ void ConstantPropagation(IR::Block& block, IR::Inst& inst) {
     case IR::Opcode::ULessThan64:
         FoldWhenAllImmediates(inst, [](u64 a, u64 b) { return a < b; });
         return;
+    case IR::Opcode::SLessThanEqual16:
+        FoldWhenAllImmediates(inst, [](s16 a, s16 b) { return a <= b; });
+        return;
     case IR::Opcode::SLessThanEqual32:
         FoldWhenAllImmediates(inst, [](s32 a, s32 b) { return a <= b; });
         return;
     case IR::Opcode::SLessThanEqual64:
         FoldWhenAllImmediates(inst, [](s64 a, s64 b) { return a <= b; });
+        return;
+    case IR::Opcode::ULessThanEqual16:
+        FoldWhenAllImmediates(inst, [](u16 a, u16 b) { return a <= b; });
         return;
     case IR::Opcode::ULessThanEqual32:
         FoldWhenAllImmediates(inst, [](u32 a, u32 b) { return a <= b; });
@@ -459,11 +477,17 @@ void ConstantPropagation(IR::Block& block, IR::Inst& inst) {
     case IR::Opcode::ULessThanEqual64:
         FoldWhenAllImmediates(inst, [](u64 a, u64 b) { return a <= b; });
         return;
+    case IR::Opcode::SGreaterThan16:
+        FoldWhenAllImmediates(inst, [](s16 a, s16 b) { return a > b; });
+        return;
     case IR::Opcode::SGreaterThan32:
         FoldWhenAllImmediates(inst, [](s32 a, s32 b) { return a > b; });
         return;
     case IR::Opcode::SGreaterThan64:
         FoldWhenAllImmediates(inst, [](s64 a, s64 b) { return a > b; });
+        return;
+    case IR::Opcode::UGreaterThan16:
+        FoldWhenAllImmediates(inst, [](u16 a, u16 b) { return a > b; });
         return;
     case IR::Opcode::UGreaterThan32:
         FoldWhenAllImmediates(inst, [](u32 a, u32 b) { return a > b; });
@@ -471,11 +495,17 @@ void ConstantPropagation(IR::Block& block, IR::Inst& inst) {
     case IR::Opcode::UGreaterThan64:
         FoldWhenAllImmediates(inst, [](u64 a, u64 b) { return a > b; });
         return;
+    case IR::Opcode::SGreaterThanEqual16:
+        FoldWhenAllImmediates(inst, [](s16 a, s16 b) { return a >= b; });
+        return;
     case IR::Opcode::SGreaterThanEqual32:
         FoldWhenAllImmediates(inst, [](s32 a, s32 b) { return a >= b; });
         return;
     case IR::Opcode::SGreaterThanEqual64:
         FoldWhenAllImmediates(inst, [](s64 a, s64 b) { return a >= b; });
+        return;
+    case IR::Opcode::UGreaterThanEqual16:
+        FoldWhenAllImmediates(inst, [](u16 a, u16 b) { return a >= b; });
         return;
     case IR::Opcode::UGreaterThanEqual32:
         FoldWhenAllImmediates(inst, [](u32 a, u32 b) { return a >= b; });
@@ -483,11 +513,17 @@ void ConstantPropagation(IR::Block& block, IR::Inst& inst) {
     case IR::Opcode::UGreaterThanEqual64:
         FoldWhenAllImmediates(inst, [](u64 a, u64 b) { return a >= b; });
         return;
+    case IR::Opcode::IEqual16:
+        FoldWhenAllImmediates(inst, [](u16 a, u16 b) { return a == b; });
+        return;
     case IR::Opcode::IEqual32:
         FoldWhenAllImmediates(inst, [](u32 a, u32 b) { return a == b; });
         return;
     case IR::Opcode::IEqual64:
         FoldWhenAllImmediates(inst, [](u64 a, u64 b) { return a == b; });
+        return;
+    case IR::Opcode::INotEqual16:
+        FoldWhenAllImmediates(inst, [](u16 a, u16 b) { return a != b; });
         return;
     case IR::Opcode::INotEqual32:
         FoldWhenAllImmediates(inst, [](u32 a, u32 b) { return a != b; });

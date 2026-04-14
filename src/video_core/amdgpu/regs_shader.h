@@ -178,7 +178,15 @@ struct ComputeProgram {
     struct {
         u64 num_vgprs : 6;
         u64 num_sgprs : 4;
-        u64 : 23;
+        u64 priority : 2;
+        u64 float_mode : 8;
+        u64 priv : 1;
+        u64 dx10_clamp : 1;
+        u64 debug_mode : 1;
+        u64 ieee_mode : 1;
+        u64 : 2;
+        u64 fp16_ovfl : 1;
+        u64 : 6;
         u64 num_user_regs : 5;
         u64 : 1;
         u64 tgid_enable : 3;

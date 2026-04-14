@@ -63,6 +63,16 @@ IR::U32 IREmitter::BitCast<IR::U32, IR::U1>(const IR::U1& value) {
 }
 
 template <>
+IR::U64 IREmitter::BitCast<IR::U64, IR::F64>(const IR::F64& value) {
+    return Inst<IR::U64>(Opcode::BitCastU64F64, value);
+}
+
+template <>
+IR::F64 IREmitter::BitCast<IR::F64, IR::U64>(const IR::U64& value) {
+    return Inst<IR::F64>(Opcode::BitCastF64U64, value);
+}
+
+template <>
 IR::U32 IREmitter::BitCast<IR::U32, IR::F32>(const IR::F32& value) {
     return Inst<IR::U32>(Opcode::BitCastU32F32, value);
 }
@@ -707,6 +717,8 @@ Value IREmitter::CompositeConstruct(const Value& e1, const Value& e2) {
         UNREACHABLE_MSG("Mismatching types {} and {}", e1.Type(), e2.Type());
     }
     switch (e1.Type()) {
+    case Type::U16:
+        return Inst(Opcode::CompositeConstructU16x2, e1, e2);
     case Type::U32:
         return Inst(Opcode::CompositeConstructU32x2, e1, e2);
     case Type::U32x2:
@@ -772,6 +784,8 @@ Value IREmitter::CompositeExtract(const Value& vector, size_t element) {
         return Inst(opcode, vector, Value{static_cast<u32>(element)});
     }};
     switch (vector.Type()) {
+    case Type::U16x2:
+        return read(Opcode::CompositeExtractU16x2, 2);
     case Type::U32x2:
         return read(Opcode::CompositeExtractU32x2, 2);
     case Type::U32x3:
@@ -1254,11 +1268,13 @@ U32 IREmitter::FPFrexpExp(const F32F64& value) {
     }
 }
 
-U1 IREmitter::FPEqual(const F32F64& lhs, const F32F64& rhs, bool ordered) {
+U1 IREmitter::FPEqual(const F16F32F64& lhs, const F16F32F64& rhs, bool ordered) {
     if (lhs.Type() != rhs.Type()) {
         UNREACHABLE_MSG("Mismatching types {} and {}", lhs.Type(), rhs.Type());
     }
     switch (lhs.Type()) {
+    case Type::F16:
+        return Inst<U1>(ordered ? Opcode::FPOrdEqual16 : Opcode::FPUnordEqual16, lhs, rhs);
     case Type::F32:
         return Inst<U1>(ordered ? Opcode::FPOrdEqual32 : Opcode::FPUnordEqual32, lhs, rhs);
     case Type::F64:
@@ -1268,11 +1284,13 @@ U1 IREmitter::FPEqual(const F32F64& lhs, const F32F64& rhs, bool ordered) {
     }
 }
 
-U1 IREmitter::FPNotEqual(const F32F64& lhs, const F32F64& rhs, bool ordered) {
+U1 IREmitter::FPNotEqual(const F16F32F64& lhs, const F16F32F64& rhs, bool ordered) {
     if (lhs.Type() != rhs.Type()) {
         UNREACHABLE_MSG("Mismatching types {} and {}", lhs.Type(), rhs.Type());
     }
     switch (lhs.Type()) {
+    case Type::F16:
+        return Inst<U1>(ordered ? Opcode::FPOrdNotEqual16 : Opcode::FPUnordNotEqual16, lhs, rhs);
     case Type::F32:
         return Inst<U1>(ordered ? Opcode::FPOrdNotEqual32 : Opcode::FPUnordNotEqual32, lhs, rhs);
     case Type::F64:
@@ -1282,11 +1300,13 @@ U1 IREmitter::FPNotEqual(const F32F64& lhs, const F32F64& rhs, bool ordered) {
     }
 }
 
-U1 IREmitter::FPLessThan(const F32F64& lhs, const F32F64& rhs, bool ordered) {
+U1 IREmitter::FPLessThan(const F16F32F64& lhs, const F16F32F64& rhs, bool ordered) {
     if (lhs.Type() != rhs.Type()) {
         UNREACHABLE_MSG("Mismatching types {} and {}", lhs.Type(), rhs.Type());
     }
     switch (lhs.Type()) {
+    case Type::F16:
+        return Inst<U1>(ordered ? Opcode::FPOrdLessThan16 : Opcode::FPUnordLessThan16, lhs, rhs);
     case Type::F32:
         return Inst<U1>(ordered ? Opcode::FPOrdLessThan32 : Opcode::FPUnordLessThan32, lhs, rhs);
     case Type::F64:
@@ -1296,11 +1316,14 @@ U1 IREmitter::FPLessThan(const F32F64& lhs, const F32F64& rhs, bool ordered) {
     }
 }
 
-U1 IREmitter::FPGreaterThan(const F32F64& lhs, const F32F64& rhs, bool ordered) {
+U1 IREmitter::FPGreaterThan(const F16F32F64& lhs, const F16F32F64& rhs, bool ordered) {
     if (lhs.Type() != rhs.Type()) {
         UNREACHABLE_MSG("Mismatching types {} and {}", lhs.Type(), rhs.Type());
     }
     switch (lhs.Type()) {
+    case Type::F16:
+        return Inst<U1>(ordered ? Opcode::FPOrdGreaterThan16 : Opcode::FPUnordGreaterThan16, lhs,
+                        rhs);
     case Type::F32:
         return Inst<U1>(ordered ? Opcode::FPOrdGreaterThan32 : Opcode::FPUnordGreaterThan32, lhs,
                         rhs);
@@ -1312,11 +1335,14 @@ U1 IREmitter::FPGreaterThan(const F32F64& lhs, const F32F64& rhs, bool ordered) 
     }
 }
 
-U1 IREmitter::FPLessThanEqual(const F32F64& lhs, const F32F64& rhs, bool ordered) {
+U1 IREmitter::FPLessThanEqual(const F16F32F64& lhs, const F16F32F64& rhs, bool ordered) {
     if (lhs.Type() != rhs.Type()) {
         UNREACHABLE_MSG("Mismatching types {} and {}", lhs.Type(), rhs.Type());
     }
     switch (lhs.Type()) {
+    case Type::F16:
+        return Inst<U1>(ordered ? Opcode::FPOrdLessThanEqual16 : Opcode::FPUnordLessThanEqual16,
+                        lhs, rhs);
     case Type::F32:
         return Inst<U1>(ordered ? Opcode::FPOrdLessThanEqual32 : Opcode::FPUnordLessThanEqual32,
                         lhs, rhs);
@@ -1328,11 +1354,15 @@ U1 IREmitter::FPLessThanEqual(const F32F64& lhs, const F32F64& rhs, bool ordered
     }
 }
 
-U1 IREmitter::FPGreaterThanEqual(const F32F64& lhs, const F32F64& rhs, bool ordered) {
+U1 IREmitter::FPGreaterThanEqual(const F16F32F64& lhs, const F16F32F64& rhs, bool ordered) {
     if (lhs.Type() != rhs.Type()) {
         UNREACHABLE_MSG("Mismatching types {} and {}", lhs.Type(), rhs.Type());
     }
     switch (lhs.Type()) {
+    case Type::F16:
+        return Inst<U1>(ordered ? Opcode::FPOrdGreaterThanEqual16
+                                : Opcode::FPUnordGreaterThanEqual16,
+                        lhs, rhs);
     case Type::F32:
         return Inst<U1>(ordered ? Opcode::FPOrdGreaterThanEqual32
                                 : Opcode::FPUnordGreaterThanEqual32,
@@ -1346,8 +1376,10 @@ U1 IREmitter::FPGreaterThanEqual(const F32F64& lhs, const F32F64& rhs, bool orde
     }
 }
 
-U1 IREmitter::FPIsNan(const F32F64& value) {
+U1 IREmitter::FPIsNan(const F16F32F64& value) {
     switch (value.Type()) {
+    case Type::F16:
+        return Inst<U1>(Opcode::FPIsNan16, value);
     case Type::F32:
         return Inst<U1>(Opcode::FPIsNan32, value);
     case Type::F64:
@@ -1363,6 +1395,32 @@ U1 IREmitter::FPIsInf(const F32F64& value) {
         return Inst<U1>(Opcode::FPIsInf32, value);
     case Type::F64:
         return Inst<U1>(Opcode::FPIsInf64, value);
+    default:
+        ThrowInvalidType(value.Type());
+    }
+}
+
+U1 IREmitter::FPIsDenorm(const F32F64& value) {
+    switch (value.Type()) {
+    case Type::F32: {
+        const IR::F32 flt_min = BitCast<IR::F32, IR::U32>(Imm32(0x00800000));
+        return FPLessThan(FPAbs(value), flt_min, true);
+    }
+    case Type::F64: {
+        const IR::F64 dbl_min = BitCast<IR::F64, IR::U64>(Imm64(0x0010000000000000));
+        return FPLessThan(FPAbs(value), dbl_min, true);
+    }
+    default:
+        ThrowInvalidType(value.Type());
+    }
+}
+
+F32F64 IREmitter::FPSign(const F32F64& value) {
+    switch (value.Type()) {
+    case Type::F32:
+        return Inst<F32>(Opcode::FPSign32, value);
+    case Type::F64:
+        return Inst<F64>(Opcode::FPSign64, value);
     default:
         ThrowInvalidType(value.Type());
     }
@@ -1506,6 +1564,17 @@ U32U64 IREmitter::INeg(const U32U64& value) {
 
 U32 IREmitter::IAbs(const U32& value) {
     return Inst<U32>(Opcode::IAbs32, value);
+}
+
+U32U64 IREmitter::SSign(const U32U64& value) {
+    switch (value.Type()) {
+    case Type::U32:
+        return Inst<U32>(Opcode::SSign32, value);
+    case Type::U64:
+        return Inst<U64>(Opcode::SSign64, value);
+    default:
+        ThrowInvalidType(value.Type());
+    }
 }
 
 U32U64 IREmitter::ShiftLeftLogical(const U32U64& base, const U32& shift) {
@@ -1709,11 +1778,13 @@ U32 IREmitter::UClamp(const U32& value, const U32& min, const U32& max) {
     return Inst<U32>(Opcode::UClamp32, value, min, max);
 }
 
-U1 IREmitter::ILessThan(const U32U64& lhs, const U32U64& rhs, bool is_signed) {
+U1 IREmitter::ILessThan(const U16U32U64& lhs, const U16U32U64& rhs, bool is_signed) {
     if (lhs.Type() != rhs.Type()) {
         UNREACHABLE_MSG("Mismatching types {} and {}", lhs.Type(), rhs.Type());
     }
     switch (lhs.Type()) {
+    case Type::U16:
+        return Inst<U1>(is_signed ? Opcode::SLessThan16 : Opcode::ULessThan16, lhs, rhs);
     case Type::U32:
         return Inst<U1>(is_signed ? Opcode::SLessThan32 : Opcode::ULessThan32, lhs, rhs);
     case Type::U64:
@@ -1723,11 +1794,13 @@ U1 IREmitter::ILessThan(const U32U64& lhs, const U32U64& rhs, bool is_signed) {
     }
 }
 
-U1 IREmitter::IEqual(const U32U64& lhs, const U32U64& rhs) {
+U1 IREmitter::IEqual(const U16U32U64& lhs, const U16U32U64& rhs) {
     if (lhs.Type() != rhs.Type()) {
         UNREACHABLE_MSG("Mismatching types {} and {}", lhs.Type(), rhs.Type());
     }
     switch (lhs.Type()) {
+    case Type::U16:
+        return Inst<U1>(Opcode::IEqual16, lhs, rhs);
     case Type::U32:
         return Inst<U1>(Opcode::IEqual32, lhs, rhs);
     case Type::U64:
@@ -1737,11 +1810,13 @@ U1 IREmitter::IEqual(const U32U64& lhs, const U32U64& rhs) {
     }
 }
 
-U1 IREmitter::ILessThanEqual(const U32U64& lhs, const U32U64& rhs, bool is_signed) {
+U1 IREmitter::ILessThanEqual(const U16U32U64& lhs, const U16U32U64& rhs, bool is_signed) {
     if (lhs.Type() != rhs.Type()) {
         UNREACHABLE_MSG("Mismatching types {} and {}", lhs.Type(), rhs.Type());
     }
     switch (lhs.Type()) {
+    case Type::U16:
+        return Inst<U1>(is_signed ? Opcode::SLessThanEqual16 : Opcode::ULessThanEqual16, lhs, rhs);
     case Type::U32:
         return Inst<U1>(is_signed ? Opcode::SLessThanEqual32 : Opcode::ULessThanEqual32, lhs, rhs);
     case Type::U64:
@@ -1765,11 +1840,13 @@ U1 IREmitter::IGreaterThan(const U32U64& lhs, const U32U64& rhs, bool is_signed)
     }
 }
 
-U1 IREmitter::INotEqual(const U32U64& lhs, const U32U64& rhs) {
+U1 IREmitter::INotEqual(const U16U32U64& lhs, const U16U32U64& rhs) {
     if (lhs.Type() != rhs.Type()) {
         UNREACHABLE_MSG("Mismatching types {} and {}", lhs.Type(), rhs.Type());
     }
     switch (lhs.Type()) {
+    case Type::U16:
+        return Inst<U1>(Opcode::INotEqual16, lhs, rhs);
     case Type::U32:
         return Inst<U1>(Opcode::INotEqual32, lhs, rhs);
     case Type::U64:

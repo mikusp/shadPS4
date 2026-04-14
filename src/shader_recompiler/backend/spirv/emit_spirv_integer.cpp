@@ -121,6 +121,14 @@ Id EmitIAbs32(EmitContext& ctx, Id value) {
     return ctx.OpSAbs(ctx.U32[1], value);
 }
 
+Id EmitSSign32(EmitContext& ctx, Id value) {
+    return ctx.OpSSign(ctx.U32[1], value);
+}
+
+Id EmitSSign64(EmitContext& ctx, Id value) {
+    return ctx.OpSSign(ctx.U64, value);
+}
+
 Id EmitShiftLeftLogical32(EmitContext& ctx, Id base, Id shift) {
     return ctx.OpShiftLeftLogical(ctx.U32[1], base, shift);
 }
@@ -347,12 +355,20 @@ Id EmitUClamp32(EmitContext& ctx, IR::Inst* inst, Id value, Id min, Id max) {
     return result;
 }
 
+Id EmitSLessThan16(EmitContext& ctx, Id lhs, Id rhs) {
+    return ctx.OpSLessThan(ctx.U1[1], lhs, rhs);
+}
+
 Id EmitSLessThan32(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpSLessThan(ctx.U1[1], lhs, rhs);
 }
 
 Id EmitSLessThan64(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpSLessThan(ctx.U1[1], lhs, rhs);
+}
+
+Id EmitULessThan16(EmitContext& ctx, Id lhs, Id rhs) {
+    return ctx.OpULessThan(ctx.U1[1], lhs, rhs);
 }
 
 Id EmitULessThan32(EmitContext& ctx, Id lhs, Id rhs) {
@@ -363,12 +379,20 @@ Id EmitULessThan64(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpULessThan(ctx.U1[1], lhs, rhs);
 }
 
+Id EmitIEqual16(EmitContext& ctx, Id lhs, Id rhs) {
+    return ctx.OpIEqual(ctx.U1[1], lhs, rhs);
+}
+
 Id EmitIEqual32(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpIEqual(ctx.U1[1], lhs, rhs);
 }
 
 Id EmitIEqual64(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpIEqual(ctx.U1[1], lhs, rhs);
+}
+
+Id EmitSLessThanEqual16(EmitContext& ctx, Id lhs, Id rhs) {
+    return ctx.OpSLessThanEqual(ctx.U1[1], lhs, rhs);
 }
 
 Id EmitSLessThanEqual32(EmitContext& ctx, Id lhs, Id rhs) {
@@ -379,12 +403,20 @@ Id EmitSLessThanEqual64(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpSLessThanEqual(ctx.U1[1], lhs, rhs);
 }
 
+Id EmitULessThanEqual16(EmitContext& ctx, Id lhs, Id rhs) {
+    return ctx.OpULessThanEqual(ctx.U1[1], lhs, rhs);
+}
+
 Id EmitULessThanEqual32(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpULessThanEqual(ctx.U1[1], lhs, rhs);
 }
 
 Id EmitULessThanEqual64(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpULessThanEqual(ctx.U1[1], lhs, rhs);
+}
+
+Id EmitSGreaterThan16(EmitContext& ctx, Id lhs, Id rhs) {
+    return ctx.OpSGreaterThan(ctx.U1[1], lhs, rhs);
 }
 
 Id EmitSGreaterThan32(EmitContext& ctx, Id lhs, Id rhs) {
@@ -395,12 +427,20 @@ Id EmitSGreaterThan64(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpSGreaterThan(ctx.U1[1], lhs, rhs);
 }
 
+Id EmitUGreaterThan16(EmitContext& ctx, Id lhs, Id rhs) {
+    return ctx.OpUGreaterThan(ctx.U1[1], lhs, rhs);
+}
+
 Id EmitUGreaterThan32(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpUGreaterThan(ctx.U1[1], lhs, rhs);
 }
 
 Id EmitUGreaterThan64(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpUGreaterThan(ctx.U1[1], lhs, rhs);
+}
+
+Id EmitINotEqual16(EmitContext& ctx, Id lhs, Id rhs) {
+    return ctx.OpINotEqual(ctx.U1[1], lhs, rhs);
 }
 
 Id EmitINotEqual32(EmitContext& ctx, Id lhs, Id rhs) {
@@ -411,12 +451,20 @@ Id EmitINotEqual64(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpINotEqual(ctx.U1[1], lhs, rhs);
 }
 
+Id EmitSGreaterThanEqual16(EmitContext& ctx, Id lhs, Id rhs) {
+    return ctx.OpSGreaterThanEqual(ctx.U1[1], lhs, rhs);
+}
+
 Id EmitSGreaterThanEqual32(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpSGreaterThanEqual(ctx.U1[1], lhs, rhs);
 }
 
 Id EmitSGreaterThanEqual64(EmitContext& ctx, Id lhs, Id rhs) {
     return ctx.OpSGreaterThanEqual(ctx.U1[1], lhs, rhs);
+}
+
+Id EmitUGreaterThanEqual16(EmitContext& ctx, Id lhs, Id rhs) {
+    return ctx.OpUGreaterThanEqual(ctx.U1[1], lhs, rhs);
 }
 
 Id EmitUGreaterThanEqual32(EmitContext& ctx, Id lhs, Id rhs) {

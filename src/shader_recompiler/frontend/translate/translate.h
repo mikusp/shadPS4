@@ -128,6 +128,7 @@ public:
     void S_FF1_I32_B64(const GcnInst& inst);
     void S_FLBIT_I32_B32(const GcnInst& inst);
     void S_FLBIT_I32_B64(const GcnInst& inst);
+    void S_SEXT_I32_I16(const GcnInst& inst);
     void S_BITSET_B32(const GcnInst& inst, u32 bit_value);
     void S_GETPC_B64(const GcnInst& inst);
     void S_SAVEEXEC_B64(NegateMode negate, bool is_or, const GcnInst& inst);
@@ -238,10 +239,14 @@ public:
     void V_MOVRELD_B32(const GcnInst& inst);
     void V_MOVRELS_B32(const GcnInst& inst);
     void V_MOVRELSD_B32(const GcnInst& inst);
+    void V_RCP_F16(const GcnInst& inst);
+    void V_SQRT_F16(const GcnInst& inst);
 
     // VOPC
+    void V_CMP_F16(ConditionOp op, bool set_exec, const GcnInst& inst);
     void V_CMP_F32(ConditionOp op, bool set_exec, const GcnInst& inst);
     void V_CMP_F64(ConditionOp op, bool set_exec, const GcnInst& inst);
+    void V_CMP_U16(ConditionOp op, bool is_signed, bool set_exec, const GcnInst& inst);
     void V_CMP_U32(ConditionOp op, bool is_signed, bool set_exec, const GcnInst& inst);
     void V_CMP_U64(ConditionOp op, bool is_signed, bool set_exec, const GcnInst& inst);
     void V_CMP_CLASS_F32(const GcnInst& inst);
@@ -283,15 +288,36 @@ public:
     void V_LSHLREV_B16(const GcnInst& inst);
     void V_LSHL_ADD_U32(const GcnInst& inst);
     void V_ADD_LSHL_U32(const GcnInst& inst);
+    void V_DIV_SCALE_F32(const GcnInst& inst);
+    void V_DIV_FMAS_F32(const GcnInst& inst);
+    void V_MSAD_U8(const GcnInst& inst);
+    void V_ADD_NC_U16(const GcnInst& inst);
+    void V_LSHRREV_B16(const GcnInst& inst);
+    void V_ASHRREV_I16(const GcnInst& inst);
+    void V_ADD_NC_I16(const GcnInst& inst);
+    void V_SUB_NC_I16(const GcnInst& inst);
+    void V_SUB_CO_U32(const GcnInst& inst);
+    void V_LSHLREV_B16(const GcnInst& inst);
+    void V_MAD_F16(const GcnInst& inst);
     void V_MIN3_F16(const GcnInst& inst);
     void V_MAX3_F16(const GcnInst& inst);
-    void V_MED3_F16(const GcnInst& inst);
+    void V_MAD_I16(const GcnInst& inst);
     void V_ADD3_U32(const GcnInst& inst);
     void V_LSHL_OR_B32(const GcnInst& inst);
     void V_AND_OR_B32(const GcnInst& inst);
     void V_OR3_B32(const GcnInst& inst);
 
     // VOP3P
+    void V_PK_MUL_LO_U16(const GcnInst& inst);
+    void V_PK_ADD_I16(const GcnInst& inst);
+    void V_PK_SUB_I16(const GcnInst& inst);
+    void V_PK_LSHLREV_B16(const GcnInst& inst);
+    void V_PK_LSHRREV_B16(const GcnInst& inst);
+    void V_PK_MAD_U16(const GcnInst& inst);
+    void V_PK_ADD_U16(const GcnInst& inst);
+    void V_PK_SUB_U16(const GcnInst& inst);
+    void V_PK_MAX_U16(const GcnInst& inst);
+    void V_PK_MIN_U16(const GcnInst& inst);
     void V_PK_FMA_F16(const GcnInst& inst);
     void V_PK_ADD_F16(const GcnInst& inst);
     void V_PK_MUL_F16(const GcnInst& inst);
@@ -352,6 +378,8 @@ private:
     template <bool is_signed = false>
     void SetDst16(const InstOperand& operand, const IR::U32F32& value);
     void SetDst64(const InstOperand& operand, const IR::U64F64& value_raw);
+
+    IR::U32 SdwaSelect(const IR::U32& value, SdwaSelector sel);
 
     // Vector ALU Helpers
     IR::U32 GetCarryIn(const GcnInst& inst);

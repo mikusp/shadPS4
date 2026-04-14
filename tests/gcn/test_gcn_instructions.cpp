@@ -122,6 +122,147 @@ TEST_F(GcnTest, sub_f16) {
     EXPECT_EQ(*result, F16x2{half(-1.0f)}); //confirmed with neo
 }
 
+TEST_F(GcnTest, pk_add_f16) {
+    auto runner = gcn_test::Runner::instance().value();
+
+    auto spirv = TranslateToSpirv(VOP3P(OpcodeVOP3P::V_PK_ADD_F16, VOperand8::V0, SOperand9::V0, SOperand9::V1).Get());
+    auto result = runner->run<F16x2>(spirv, std::array{F16x2{half(1.0f), half(2.0f)}, F16x2{half(3.0f), half(4.0f)}});
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, (F16x2{half(4.0f), half(6.0f)}));
+}
+
+TEST_F(GcnTest, pk_add_f16_neg_lo) {
+    auto runner = gcn_test::Runner::instance().value();
+
+    auto spirv = TranslateToSpirv(VOP3P(OpcodeVOP3P::V_PK_ADD_F16, VOperand8::V0, SOperand9::V0, SOperand9::V1).SetNeg({true, true, false}).Get());
+    auto result = runner->run<F16x2>(spirv, std::array{F16x2{half(1.0f), half(2.0f)}, F16x2{half(3.0f), half(4.0f)}});
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, (F16x2{half(-4.0f), half(6.0f)}));
+}
+
+TEST_F(GcnTest, pk_add_f16_neg_hi) {
+    auto runner = gcn_test::Runner::instance().value();
+
+    auto spirv = TranslateToSpirv(VOP3P(OpcodeVOP3P::V_PK_ADD_F16, VOperand8::V0, SOperand9::V0, SOperand9::V1).SetNegHi({true, true, false}).Get());
+    auto result = runner->run<F16x2>(spirv, std::array{F16x2{half(1.0f), half(2.0f)}, F16x2{half(3.0f), half(4.0f)}});
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, (F16x2{half(4.0f), half(-6.0f)}));
+}
+
+TEST_F(GcnTest, pk_add_f16_op_sel_reversed) {
+    auto runner = gcn_test::Runner::instance().value();
+
+    auto spirv = TranslateToSpirv(VOP3P(OpcodeVOP3P::V_PK_ADD_F16, VOperand8::V0, SOperand9::V0, SOperand9::V1).SetOpSel({1, 1, 1}).SetOpSelHi({0, 0, 0}).Get());
+    auto result = runner->run<F16x2>(spirv, std::array{F16x2{half(1.0f), half(2.0f)}, F16x2{half(3.0f), half(4.0f)}});
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, (F16x2{half(6.0f), half(4.0f)}));
+}
+
+struct U16x2 {
+    u16 a;
+    u16 b = 0;
+
+    bool operator==(const U16x2& rhs) const = default;
+};
+
+struct S16x2 {
+    s16 a;
+    s16 b = 0;
+
+    bool operator==(const S16x2& rhs) const = default;
+};
+
+TEST_F(GcnTest, pk_add_i16) {
+    auto runner = gcn_test::Runner::instance().value();
+
+    auto spirv = TranslateToSpirv(VOP3P(OpcodeVOP3P::V_PK_ADD_I16, VOperand8::V0, SOperand9::V0, SOperand9::V1).Get());
+    auto result = runner->run<U16x2>(spirv, std::array{U16x2{1, 2}, U16x2{3, 4}});
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, (U16x2{4, 6}));
+}
+
+TEST_F(GcnTest, pk_add_i16_neg_lo) {
+    auto runner = gcn_test::Runner::instance().value();
+
+    auto spirv = TranslateToSpirv(VOP3P(OpcodeVOP3P::V_PK_ADD_I16, VOperand8::V0, SOperand9::V0, SOperand9::V1).SetNeg({1,1,1}).Get());
+    auto result = runner->run<S16x2>(spirv, std::array{U16x2{1, 2}, U16x2{3, 4}});
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, (S16x2{-4, 6}));
+}
+
+TEST_F(GcnTest, pk_add_i16_neg_hi) {
+    auto runner = gcn_test::Runner::instance().value();
+
+    auto spirv = TranslateToSpirv(VOP3P(OpcodeVOP3P::V_PK_ADD_I16, VOperand8::V0, SOperand9::V0, SOperand9::V1).SetNegHi({1,1,1}).Get());
+    auto result = runner->run<S16x2>(spirv, std::array{U16x2{1, 2}, U16x2{3, 4}});
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, (S16x2{4, -6}));
+}
+
+TEST_F(GcnTest, pk_mad_u16) {
+    auto runner = gcn_test::Runner::instance().value();
+
+    auto spirv = TranslateToSpirv(VOP3P(OpcodeVOP3P::V_PK_MAD_U16, VOperand8::V0, SOperand9::V0, SOperand9::V1, SOperand9::V2).Get());
+    auto result = runner->run<U16x2>(spirv, std::array{U16x2{1, 2}, U16x2{3, 4}, U16x2{5, 6}});
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, (U16x2{8, 14}));
+}
+
+TEST_F(GcnTest, pk_add_u16) {
+    auto runner = gcn_test::Runner::instance().value();
+
+    auto spirv = TranslateToSpirv(VOP3P(OpcodeVOP3P::V_PK_ADD_U16, VOperand8::V0, SOperand9::V0, SOperand9::V1).Get());
+    auto result = runner->run<U16x2>(spirv, std::array{U16x2{0xFF80, 2}, U16x2{1, 4}});
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, (U16x2{0xFF81, 6}));
+}
+
+TEST_F(GcnTest, pk_sub_u16) {
+    auto runner = gcn_test::Runner::instance().value();
+
+    auto spirv = TranslateToSpirv(VOP3P(OpcodeVOP3P::V_PK_SUB_U16, VOperand8::V0, SOperand9::V0, SOperand9::V1).Get());
+    auto result = runner->run<U16x2>(spirv, std::array{U16x2{0, 2}, U16x2{1, 4}});
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, (U16x2{0xFFFF, 0xFFFE}));
+}
+
+struct S32x2 {
+    s32 a;
+    s32 b = 0;
+
+    bool operator==(const S32x2& rhs) const = default;
+};
+
+// TEST_F(GcnTest, add_i32_neg) {
+//     auto runner = gcn_test::Runner::instance().value();
+
+//     auto spirv = TranslateToSpirv(VOP3A(OpcodeVOP3::V_ADD_I32, VOperand8::V0, SOperand9::V0, SOperand9::V1).SetNeg({1, 0, 0}).Get());
+//     auto result = runner->run<s32>(spirv, std::array{-1, 1});
+
+//     EXPECT_TRUE(result.has_value());
+//     EXPECT_EQ(*result, 2);
+// }
+
+// TEST_F(GcnTest, add_i32_abs) {
+//     auto runner = gcn_test::Runner::instance().value();
+
+//     auto spirv = TranslateToSpirv(VOP3A(OpcodeVOP3::V_ADD_I32, VOperand8::V0, SOperand9::V0, SOperand9::V1).SetAbs({1, 0, 0}).Get());
+//     auto result = runner->run<s32>(spirv, std::array{-1, 1});
+
+//     EXPECT_TRUE(result.has_value());
+//     EXPECT_EQ(*result, 2);
+// }
+
 TEST_F(GcnTest, mul_legacy_nan) {
     auto runner = gcn_test::Runner::instance().value();
 
@@ -507,4 +648,34 @@ TEST_F(GcnTest, pk_add_f16_op_sel_reversed) {
 
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(*result, (F16x2{half(6.0f), half(4.0f)}));
+}
+
+TEST_F(GcnTest, cvt_f32_u32_1) {
+    auto runner = gcn_test::Runner::instance().value();
+
+    auto spirv = TranslateToSpirv(VOP3A(OpcodeVOP3::V_CVT_F32_U32, VOperand8::V0, SOperand9::V0, SOperand9::V1).SetClamp(true).Get());
+    auto result = runner->run<u32>(spirv, std::array{2});
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, 0x3f800000);
+}
+
+TEST_F(GcnTest, cvt_f32_u32_2) {
+    auto runner = gcn_test::Runner::instance().value();
+
+    auto spirv = TranslateToSpirv(VOP3A(OpcodeVOP3::V_CVT_F32_U32, VOperand8::V0, SOperand9::V0, SOperand9::V1).SetOmod(Omod::Mul2).Get());
+    auto result = runner->run<u32>(spirv, std::array{1});
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, 0x40000000);
+}
+
+TEST_F(GcnTest, cvt_f32_u32_3) {
+    auto runner = gcn_test::Runner::instance().value();
+
+    auto spirv = TranslateToSpirv(VOP3A(OpcodeVOP3::V_CVT_F32_U32, VOperand8::V0, SOperand9::V0, SOperand9::V1).SetAbs({1,0,0}).Get());
+    auto result = runner->run<u32>(spirv, std::array{0x80000003});
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, 0x40400000);
 }

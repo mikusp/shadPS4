@@ -238,6 +238,7 @@ public:
     [[nodiscard]] F32F64 FPRecipSqrt(const F32F64& value);
     [[nodiscard]] F32 FPSqrt(const F32& value);
     [[nodiscard]] F32F64 FPSaturate(const F32F64& value);
+    [[nodiscard]] F32F64 FPSign(const F32F64& value);
     [[nodiscard]] F32F64 FPClamp(const F32F64& value, const F32F64& min_value,
                                  const F32F64& max_value);
     [[nodiscard]] F32F64 FPRoundEven(const F32F64& value);
@@ -248,14 +249,17 @@ public:
     [[nodiscard]] F32F64 FPFrexpSig(const F32F64& value);
     [[nodiscard]] U32 FPFrexpExp(const F32F64& value);
 
-    [[nodiscard]] U1 FPEqual(const F32F64& lhs, const F32F64& rhs, bool ordered = true);
-    [[nodiscard]] U1 FPNotEqual(const F32F64& lhs, const F32F64& rhs, bool ordered = true);
-    [[nodiscard]] U1 FPLessThanEqual(const F32F64& lhs, const F32F64& rhs, bool ordered = true);
-    [[nodiscard]] U1 FPGreaterThanEqual(const F32F64& lhs, const F32F64& rhs, bool ordered = true);
-    [[nodiscard]] U1 FPLessThan(const F32F64& lhs, const F32F64& rhs, bool ordered = true);
-    [[nodiscard]] U1 FPGreaterThan(const F32F64& lhs, const F32F64& rhs, bool ordered = true);
-    [[nodiscard]] U1 FPIsNan(const F32F64& value);
+    [[nodiscard]] U1 FPEqual(const F16F32F64& lhs, const F16F32F64& rhs, bool ordered = true);
+    [[nodiscard]] U1 FPNotEqual(const F16F32F64& lhs, const F16F32F64& rhs, bool ordered = true);
+    [[nodiscard]] U1 FPLessThanEqual(const F16F32F64& lhs, const F16F32F64& rhs,
+                                     bool ordered = true);
+    [[nodiscard]] U1 FPGreaterThanEqual(const F16F32F64& lhs, const F16F32F64& rhs,
+                                        bool ordered = true);
+    [[nodiscard]] U1 FPLessThan(const F16F32F64& lhs, const F16F32F64& rhs, bool ordered = true);
+    [[nodiscard]] U1 FPGreaterThan(const F16F32F64& lhs, const F16F32F64& rhs, bool ordered = true);
+    [[nodiscard]] U1 FPIsNan(const F16F32F64& value);
     [[nodiscard]] U1 FPIsInf(const F32F64& value);
+    [[nodiscard]] U1 FPIsDenorm(const F32F64& value);
     [[nodiscard]] U1 FPCmpClass32(const F32& value, const U32& op);
     [[nodiscard]] U1 FPOrdered(const F32F64& lhs, const F32F64& rhs);
     [[nodiscard]] U1 FPUnordered(const F32F64& lhs, const F32F64& rhs);
@@ -274,6 +278,7 @@ public:
     [[nodiscard]] U32 IMod(const U32& a, const U32& b, bool is_signed = false);
     [[nodiscard]] U32U64 INeg(const U32U64& value);
     [[nodiscard]] U32 IAbs(const U32& value);
+    [[nodiscard]] U32U64 SSign(const U32U64& value);
     [[nodiscard]] U32U64 ShiftLeftLogical(const U32U64& base, const U32& shift);
     [[nodiscard]] U32U64 ShiftRightLogical(const U32U64& base, const U32& shift);
     [[nodiscard]] U32U64 ShiftRightArithmetic(const U32U64& base, const U32& shift);
@@ -309,11 +314,11 @@ public:
     [[nodiscard]] U32 SClamp(const U32& value, const U32& min, const U32& max);
     [[nodiscard]] U32 UClamp(const U32& value, const U32& min, const U32& max);
 
-    [[nodiscard]] U1 ILessThan(const U32U64& lhs, const U32U64& rhs, bool is_signed);
-    [[nodiscard]] U1 IEqual(const U32U64& lhs, const U32U64& rhs);
-    [[nodiscard]] U1 ILessThanEqual(const U32U64& lhs, const U32U64& rhs, bool is_signed);
+    [[nodiscard]] U1 ILessThan(const U16U32U64& lhs, const U16U32U64& rhs, bool is_signed);
+    [[nodiscard]] U1 IEqual(const U16U32U64& lhs, const U16U32U64& rhs);
+    [[nodiscard]] U1 ILessThanEqual(const U16U32U64& lhs, const U16U32U64& rhs, bool is_signed);
     [[nodiscard]] U1 IGreaterThan(const U32U64& lhs, const U32U64& rhs, bool is_signed);
-    [[nodiscard]] U1 INotEqual(const U32U64& lhs, const U32U64& rhs);
+    [[nodiscard]] U1 INotEqual(const U16U32U64& lhs, const U16U32U64& rhs);
     [[nodiscard]] U1 IGreaterThanEqual(const U32U64& lhs, const U32U64& rhs, bool is_signed);
 
     [[nodiscard]] U1 LogicalOr(const U1& a, const U1& b);

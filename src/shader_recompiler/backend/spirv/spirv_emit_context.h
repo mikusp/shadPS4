@@ -208,6 +208,7 @@ public:
     VectorIds F32{};
     VectorIds F64{};
     VectorIds S32{};
+    VectorIds U16V{};
     VectorIds U32{};
     VectorIds U1{};
 
