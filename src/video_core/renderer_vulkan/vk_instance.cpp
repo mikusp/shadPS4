@@ -196,7 +196,8 @@ bool Instance::CreateDevice() {
                           vk::PhysicalDevicePrimitiveTopologyListRestartFeaturesEXT,
                           vk::PhysicalDevicePortabilitySubsetFeaturesKHR,
                           vk::PhysicalDeviceShaderAtomicFloat2FeaturesEXT,
-                          vk::PhysicalDeviceWorkgroupMemoryExplicitLayoutFeaturesKHR>();
+                          vk::PhysicalDeviceWorkgroupMemoryExplicitLayoutFeaturesKHR,
+                          vk::PhysicalDeviceMeshShaderFeaturesEXT>();
     features = feature_chain.get().features;
 
     const vk::StructureChain properties_chain = physical_device.getProperties2<
@@ -305,6 +306,12 @@ bool Instance::CreateDevice() {
         LOG_INFO(
             Render_Vulkan, "- workgroupMemoryExplicitLayout16BitAccess: {}",
             workgroup_memory_explicit_layout_features.workgroupMemoryExplicitLayout16BitAccess);
+    }
+    mesh_shader = add_extension(VK_EXT_MESH_SHADER_EXTENSION_NAME);
+    if (mesh_shader) {
+        mesh_shader_features = feature_chain.get<vk::PhysicalDeviceMeshShaderFeaturesEXT>();
+        LOG_INFO(Render_Vulkan, "- taskShader: {}", mesh_shader_features.taskShader);
+        LOG_INFO(Render_Vulkan, "- meshShader: {}", mesh_shader_features.meshShader);
     }
     const bool calibrated_timestamps =
         TRACY_GPU_ENABLED ? add_extension(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME) : false;
@@ -483,6 +490,10 @@ bool Instance::CreateDevice() {
             .workgroupMemoryExplicitLayout16BitAccess =
                 workgroup_memory_explicit_layout_features.workgroupMemoryExplicitLayout16BitAccess,
         },
+        vk::PhysicalDeviceMeshShaderFeaturesEXT{
+            .taskShader = mesh_shader_features.taskShader,
+            .meshShader = mesh_shader_features.meshShader,
+        },
 #ifdef __APPLE__
         vk::PhysicalDevicePortabilitySubsetFeaturesKHR{
             .constantAlphaColorBlendFactors = portability_features.constantAlphaColorBlendFactors,
@@ -548,6 +559,9 @@ bool Instance::CreateDevice() {
     }
     if (!workgroup_memory_explicit_layout) {
         device_chain.unlink<vk::PhysicalDeviceWorkgroupMemoryExplicitLayoutFeaturesKHR>();
+    }
+    if (!mesh_shader) {
+        device_chain.unlink<vk::PhysicalDeviceMeshShaderFeaturesEXT>();
     }
 
     auto [device_result, dev] = physical_device.createDeviceUnique(device_chain.get());

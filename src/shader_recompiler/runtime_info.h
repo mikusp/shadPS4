@@ -29,6 +29,8 @@ enum class LogicalStage : u32 {
     TessellationEval,
     Vertex,
     Geometry,
+    Task,
+    Mesh,
     Compute,
     NumLogicalStages
 };

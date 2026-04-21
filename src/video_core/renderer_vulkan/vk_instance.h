@@ -249,6 +249,11 @@ public:
                workgroup_memory_explicit_layout_features.workgroupMemoryExplicitLayout16BitAccess;
     }
 
+    /// Returns true when VK_EXT_mesh_shader is supported.
+    bool IsMeshShadersSupported() const {
+        return mesh_shader && mesh_shader_features.taskShader && mesh_shader_features.meshShader;
+    }
+
     /// Returns true if VK_NV_framebuffer_mixed_samples or
     /// VK_AMD_mixed_attachment_samples is supported
     bool IsMixedDepthSamplesSupported() const {
@@ -483,6 +488,7 @@ private:
     vk::PhysicalDeviceShaderAtomicFloat2FeaturesEXT shader_atomic_float2_features;
     vk::PhysicalDeviceWorkgroupMemoryExplicitLayoutFeaturesKHR
         workgroup_memory_explicit_layout_features;
+    vk::PhysicalDeviceMeshShaderFeaturesEXT mesh_shader_features;
     vk::DriverIdKHR driver_id;
     vk::UniqueDebugUtilsMessengerEXT debug_callback{};
     std::string vendor_name;
@@ -520,6 +526,7 @@ private:
     bool attachment_feedback_loop{};
     bool supports_memory_budget{};
     bool supports_block_texel_view{};
+    bool mesh_shader{};
     u64 total_memory_budget{};
     std::vector<size_t> valid_heaps;
 };
