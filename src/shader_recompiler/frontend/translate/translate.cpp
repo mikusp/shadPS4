@@ -239,6 +239,10 @@ void Translator::EmitPrologue(IR::Block* first_block) {
         }
         ir.SetVectorReg(IR::VectorReg::V2, ir.GetAttributeU32(IR::Attribute::PrimitiveId));
         break;
+    case LogicalStage::Task:
+        UNREACHABLE();
+    case LogicalStage::Mesh:
+        UNREACHABLE();
     default:
         UNREACHABLE_MSG("Unknown shader stage");
     }

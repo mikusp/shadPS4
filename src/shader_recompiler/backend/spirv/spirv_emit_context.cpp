@@ -552,6 +552,10 @@ void EmitContext::DefineInputs() {
         }
         break;
     }
+    case LogicalStage::Task:
+        UNREACHABLE();
+    case LogicalStage::Mesh:
+        UNREACHABLE();
     default:
         break;
     }
@@ -723,6 +727,10 @@ void EmitContext::DefineOutputs() {
         }
         break;
     }
+    case LogicalStage::Task:
+        UNREACHABLE();
+    case LogicalStage::Mesh:
+        UNREACHABLE();
     case LogicalStage::Compute:
         break;
     default:

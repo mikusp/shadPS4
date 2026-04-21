@@ -40,6 +40,23 @@ static constexpr spv::ExecutionMode GetInputPrimitiveType(AmdGpu::PrimitiveType 
     }
 }
 
+static constexpr std::optional<spv::ExecutionMode> MeshExecutionMode(AmdGpu::PrimitiveType type) {
+    switch (type) {
+    case AmdGpu::PrimitiveType::PointList:
+        return {spv::ExecutionMode::OutputPoints};
+    case AmdGpu::PrimitiveType::LineList:
+    case AmdGpu::PrimitiveType::LineStrip:
+        return {spv::ExecutionMode::OutputLinesEXT};
+    case AmdGpu::PrimitiveType::TriangleList:
+    case AmdGpu::PrimitiveType::TriangleStrip:
+    case AmdGpu::PrimitiveType::RectList:
+        return {spv::ExecutionMode::OutputTrianglesEXT};
+    default:
+        return std::nullopt;
+        // UNREACHABLE_MSG("Unimplemented primitive type: {}", static_cast<u32>(type));
+    }
+}
+
 static constexpr spv::ExecutionMode GetOutputPrimitiveType(AmdGpu::GsOutputPrimitiveType type) {
     switch (type) {
     case AmdGpu::GsOutputPrimitiveType::PointList:
@@ -349,6 +366,10 @@ void SetupCapabilities(const Info& info, const Profile& profile, const RuntimeIn
         }
         ctx.AddCapability(spv::Capability::Int64Atomics);
     }
+    if (stage == LogicalStage::Task || stage == LogicalStage::Mesh) {
+        ctx.AddExtension("SPV_EXT_mesh_shader");
+        ctx.AddCapability(spv::Capability::MeshShadingEXT);
+    }
 }
 
 void DefineEntryPoint(const Info& info, EmitContext& ctx, Id main) {
@@ -405,6 +426,14 @@ void DefineEntryPoint(const Info& info, EmitContext& ctx, Id main) {
                              ctx.runtime_info.gs_info.output_vertices);
         ctx.AddExecutionMode(main, spv::ExecutionMode::Invocations,
                              ctx.runtime_info.gs_info.num_invocations);
+        break;
+    case LogicalStage::Task:
+        execution_model = spv::ExecutionModel::TaskEXT;
+        UNREACHABLE();
+        break;
+    case LogicalStage::Mesh:
+        execution_model = spv::ExecutionModel::MeshEXT;
+        UNREACHABLE();
         break;
     default:
         UNREACHABLE_MSG("Stage {}", u32(info.stage));

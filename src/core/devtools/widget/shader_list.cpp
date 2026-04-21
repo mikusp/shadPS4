@@ -185,6 +185,8 @@ bool ShaderList::Selection::DrawShader(DebugStateType::ShaderDump& value) {
                 {Shader::LogicalStage::TessellationEval, "tese"},
                 {Shader::LogicalStage::Geometry, "geom"},
                 {Shader::LogicalStage::Fragment, "frag"},
+                {Shader::LogicalStage::Task, "task"},
+                {Shader::LogicalStage::Mesh, "mesh"},
                 {Shader::LogicalStage::Compute, "comp"},
             };
             auto stage = stage_arg.find(value.l_stage);

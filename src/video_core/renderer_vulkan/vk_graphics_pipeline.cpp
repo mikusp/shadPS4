@@ -23,6 +23,8 @@ static constexpr std::array LogicalStageToStageBit = {
     vk::ShaderStageFlagBits::eTessellationEvaluation,
     vk::ShaderStageFlagBits::eVertex,
     vk::ShaderStageFlagBits::eGeometry,
+    vk::ShaderStageFlagBits::eTaskEXT,
+    vk::ShaderStageFlagBits::eMeshEXT,
     vk::ShaderStageFlagBits::eCompute,
 };
 
