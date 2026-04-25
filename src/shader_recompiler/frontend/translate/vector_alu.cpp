@@ -1808,7 +1808,7 @@ void Translator::V_DIV_SCALE_F32(const GcnInst& inst) {
                       ir.Select(one_over_src1_denorm, ir.Imm32(-64),
                                 ir.Select(src_quot_denorm,
                                           ir.Select(ir.FPEqual(src0, src2, true), u32_64, u32_zero),
-                                          ir.Select(ir.ILessThanEqual(exp2, ir.Imm32(-23), true),
+                                          ir.Select(ir.LogicalAnd(ir.ILessThanEqual(exp2, ir.Imm32(-23), true), ir.FPEqual(src0, src2, true)),
                                                     u32_64, u32_zero))))))};
 
     const IR::F32 f32_nan = ir.BitCast<IR::F32, IR::U32>(ir.Imm32(0xffc00000)); // this is the NaN ps4 uses
@@ -1818,8 +1818,6 @@ void Translator::V_DIV_SCALE_F32(const GcnInst& inst) {
     const IR::F32 result{ir.Select(nan_cond, ir.FPLdexp(src0, scale), f32_nan)};
 
     SetDst(inst.dst[0], result);
-    // SetDst(inst.dst[0], IR::U32{ir.Select(ir.FPIsInf(ir.BitCast<IR::F32>(ir.Imm32(0x7F800000))), ir.Imm32(128U), ir.Imm32(0U))});
-    // SetDst(inst.dst[0], ir.ConvertUToF(32,32,ir.FPFrexpExp(ir.BitCast<IR::F32>(ir.Imm32(0x7F800000)))));
 }
 
 void Translator::V_DIV_FMAS_F32(const GcnInst& inst) {
