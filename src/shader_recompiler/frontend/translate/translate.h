@@ -379,7 +379,7 @@ private:
     void SetDst16(const InstOperand& operand, const IR::U32F32& value);
     void SetDst64(const InstOperand& operand, const IR::U64F64& value_raw);
 
-    IR::U32 SdwaSelect(const IR::U32& value, SdwaSelector sel);
+    IR::U8U16U32 SdwaSelect(const IR::U32& value, SdwaSelector sel, bool is_signed);
 
     // Vector ALU Helpers
     IR::U32 GetCarryIn(const GcnInst& inst);

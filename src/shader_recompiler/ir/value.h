@@ -263,6 +263,7 @@ using F64 = TypedValue<Type::F64>;
 using U32F32 = TypedValue<Type::U32 | Type::F32>;
 using U64F64 = TypedValue<Type::U64 | Type::F64>;
 using U32U64 = TypedValue<Type::U32 | Type::U64>;
+using U8U16U32 = TypedValue<Type::U8 | Type::U16 | Type::U32>;
 using U16U32U64 = TypedValue<Type::U16 | Type::U32 | Type::U64>;
 using U8U16U32U64 = TypedValue<Type::U8 | Type::U16 | Type::U32 | Type::U64>;
 using F16F32 = TypedValue<Type::F16 | Type::F32>;
