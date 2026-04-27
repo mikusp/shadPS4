@@ -223,6 +223,7 @@ std::expected<void, ErrorInfo> Runner::initialize() {
     vk::PhysicalDeviceVulkan12Features v12_feat{
         .pNext = &v11_feat,
         .uniformAndStorageBuffer8BitAccess = VK_TRUE,
+        .shaderFloat16 = VK_TRUE,
         .shaderInt8 = VK_TRUE,
     };
     vk::PhysicalDeviceFeatures phys_feat{
