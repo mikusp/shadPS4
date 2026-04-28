@@ -208,6 +208,15 @@ void EmitSetAttribute(EmitContext& ctx, IR::Attribute attr, Id value, u32 elemen
             ctx.OpStore(pointer, value);
         }
     };
+    const bool is_mesh = ctx.l_stage == LogicalStage::Mesh;
+    Id mesh_local_x_cached{};
+    const auto get_mesh_local_x = [&]() {
+        if (!Sirit::ValidId(mesh_local_x_cached)) {
+            mesh_local_x_cached = ctx.OpCompositeExtract(
+                ctx.U32[1], ctx.OpLoad(ctx.U32[3], ctx.local_invocation_id), 0u);
+        }
+        return mesh_local_x_cached;
+    };
     if (IR::IsParam(attr)) {
         const u32 attr_index{u32(attr) - u32(IR::Attribute::Param0)};
         if (ctx.stage == Stage::Local) {
@@ -217,6 +226,17 @@ void EmitSetAttribute(EmitContext& ctx, IR::Attribute attr, Id value, u32 elemen
         } else {
             const auto& info{ctx.output_params.at(attr_index)};
             ASSERT(info.num_components > 0);
+            if (is_mesh) {
+                // output_params[i].id is typed as F32[num_components][3]; index by vertex slot
+                // (LocalInvocationId.x), then by component for multi-component attributes.
+                if (info.num_components == 1) {
+                    return op_store(
+                        ctx.OpAccessChain(info.pointer_type, info.id, get_mesh_local_x()));
+                } else {
+                    return op_store(ctx.OpAccessChain(info.pointer_type, info.id,
+                                                      get_mesh_local_x(), ctx.ConstU32(element)));
+                }
+            }
             if (info.num_components == 1) {
                 return op_store(info.id);
             } else {
@@ -232,6 +252,32 @@ void EmitSetAttribute(EmitContext& ctx, IR::Attribute attr, Id value, u32 elemen
             return op_store(info.id);
         } else {
             return op_store(ctx.OpAccessChain(info.pointer_type, info.id, ctx.ConstU32(element)));
+        }
+    }
+    if (is_mesh) {
+        // In a mesh shader, per-vertex builtins live inside gl_MeshVerticesEXT[vertex_slot].
+        // Route writes through that struct via LocalInvocationId.x as the vertex slot.
+        switch (attr) {
+        case IR::Attribute::Position0:
+            return op_store(ctx.OpAccessChain(
+                ctx.output_f32, ctx.mesh_vertices_output, get_mesh_local_x(),
+                ctx.ConstU32(ctx.mesh_per_vertex_pos_idx), ctx.ConstU32(element)));
+        case IR::Attribute::ClipDistance:
+            return op_store(ctx.OpAccessChain(
+                ctx.output_f32, ctx.mesh_vertices_output, get_mesh_local_x(),
+                ctx.ConstU32(ctx.mesh_per_vertex_clip_idx), ctx.ConstU32(element)));
+        case IR::Attribute::CullDistance:
+            return op_store(ctx.OpAccessChain(
+                ctx.output_f32, ctx.mesh_vertices_output, get_mesh_local_x(),
+                ctx.ConstU32(ctx.mesh_per_vertex_cull_idx), ctx.ConstU32(element)));
+        case IR::Attribute::PointSize:
+            return op_store(ctx.OpAccessChain(
+                ctx.output_f32, ctx.mesh_vertices_output, get_mesh_local_x(),
+                ctx.ConstU32(ctx.mesh_per_vertex_psize_idx)));
+        default:
+            // RenderTargetIndex/ViewportIndex/Depth/SampleMask/etc. are not wired up for the
+            // mesh MVP path; fall through to the normal handlers (they'll UNREACHABLE).
+            break;
         }
     }
     switch (attr) {

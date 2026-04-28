@@ -552,9 +552,19 @@ void EmitContext::DefineInputs() {
         }
         break;
     }
+    case LogicalStage::Mesh: {
+        // Mesh shader: drive workgroup/local ids so we can synthesize VertexId in the
+        // prologue. Vertex attribute inputs are NOT declared here — a mesh pipeline has no
+        // fixed-function vertex input state, so the fetch shader is instead inlined in the
+        // frontend translator (see Translator::EmitFetch) and its buffer_load_format_*
+        // instructions are translated to regular storage-buffer reads indexed by v0.
+        workgroup_id = DefineVariable(U32[3], spv::BuiltIn::WorkgroupId, spv::StorageClass::Input);
+        local_invocation_id =
+            DefineVariable(U32[3], spv::BuiltIn::LocalInvocationId, spv::StorageClass::Input);
+        instance_id = DefineVariable(U32[1], spv::BuiltIn::InstanceIndex, spv::StorageClass::Input);
+        break;
+    }
     case LogicalStage::Task:
-        UNREACHABLE();
-    case LogicalStage::Mesh:
         UNREACHABLE();
     default:
         break;
@@ -727,9 +737,81 @@ void EmitContext::DefineOutputs() {
         }
         break;
     }
+    case LogicalStage::Mesh: {
+        constexpr u32 kMaxVerts = 3u;
+        const Id vec3_u = U32[3];
+
+        // Per-vertex block: Position (required), and optional PointSize/ClipDist/CullDist.
+        boost::container::static_vector<Id, 4> members{F32[4]};
+        boost::container::static_vector<spv::BuiltIn, 4> member_builtins{spv::BuiltIn::Position};
+
+        mesh_per_vertex_pos_idx = 0u;
+        if (info.stores.GetAny(IR::Attribute::PointSize)) {
+            mesh_per_vertex_psize_idx = static_cast<u32>(members.size());
+            members.push_back(F32[1]);
+            member_builtins.push_back(spv::BuiltIn::PointSize);
+        }
+        const bool has_clip_distance = info.stores.GetAny(IR::Attribute::ClipDistance);
+        const bool has_cull_distance = info.stores.GetAny(IR::Attribute::CullDistance);
+        if (has_clip_distance) {
+            mesh_per_vertex_clip_idx = static_cast<u32>(members.size());
+            members.push_back(TypeArray(F32[1], ConstU32(8U)));
+            member_builtins.push_back(spv::BuiltIn::ClipDistance);
+        }
+        if (has_cull_distance) {
+            mesh_per_vertex_cull_idx = static_cast<u32>(members.size());
+            members.push_back(TypeArray(F32[1], ConstU32(8U)));
+            member_builtins.push_back(spv::BuiltIn::CullDistance);
+        }
+
+        mesh_per_vertex_type = Name(
+            TypeStruct(std::span{members.data(), members.size()}), "gl_MeshPerVertexEXT");
+        for (u32 i = 0; i < member_builtins.size(); ++i) {
+            MemberDecorate(mesh_per_vertex_type, i, spv::Decoration::BuiltIn,
+                           static_cast<u32>(member_builtins[i]));
+        }
+        MemberName(mesh_per_vertex_type, mesh_per_vertex_pos_idx, "gl_Position");
+        if (info.stores.GetAny(IR::Attribute::PointSize)) {
+            MemberName(mesh_per_vertex_type, mesh_per_vertex_psize_idx, "gl_PointSize");
+        }
+        if (has_clip_distance) {
+            MemberName(mesh_per_vertex_type, mesh_per_vertex_clip_idx, "gl_ClipDistance");
+        }
+        if (has_cull_distance) {
+            MemberName(mesh_per_vertex_type, mesh_per_vertex_cull_idx, "gl_CullDistance");
+        }
+        Decorate(mesh_per_vertex_type, spv::Decoration::Block);
+
+        const Id verts_arr_type = TypeArray(mesh_per_vertex_type, ConstU32(kMaxVerts));
+        mesh_vertices_output =
+            Name(DefineVar(verts_arr_type, spv::StorageClass::Output), "gl_MeshVerticesEXT");
+        interfaces.push_back(mesh_vertices_output);
+
+        // Primitive indices: one uvec3 per primitive, max 1 primitive for TriangleList MVP.
+        const Id prim_arr_type = TypeArray(vec3_u, ConstU32(1U));
+        mesh_primitive_indices = DefineVar(prim_arr_type, spv::StorageClass::Output);
+        Name(mesh_primitive_indices, "gl_PrimitiveTriangleIndicesEXT");
+        Decorate(mesh_primitive_indices, spv::Decoration::BuiltIn,
+                 static_cast<u32>(spv::BuiltIn::PrimitiveTriangleIndicesEXT));
+        interfaces.push_back(mesh_primitive_indices);
+
+        // Per-vertex user output params — arrays of size kMaxVerts.
+        for (u32 i = 0; i < IR::NumParams; i++) {
+            const IR::Attribute param{IR::Attribute::Param0 + i};
+            if (!info.stores.GetAny(param)) {
+                continue;
+            }
+            const u32 num_components = info.stores.NumComponents(param);
+            const Id elem_type = F32[num_components];
+            const Id arr_type = TypeArray(elem_type, ConstU32(kMaxVerts));
+            const Id id = DefineOutput(arr_type, i);
+            Name(id, fmt::format("ms_out_attr{}", i));
+            output_params[i] =
+                GetAttributeInfo(AmdGpu::NumberFormat::Float, id, num_components, true);
+        }
+        break;
+    }
     case LogicalStage::Task:
-        UNREACHABLE();
-    case LogicalStage::Mesh:
         UNREACHABLE();
     case LogicalStage::Compute:
         break;

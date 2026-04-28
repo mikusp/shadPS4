@@ -222,11 +222,45 @@ void Traverse(EmitContext& ctx, const IR::Program& program) {
     }
 }
 
+void EmitMeshSetupBlock(EmitContext& ctx, const IR::Program& program) {
+    // Entry block of a mesh shader. Declares output counts and primitive indices,
+    // then branches into the first IR block that Traverse will emit next.
+    const Id entry_label{ctx.OpLabel()};
+    ctx.AddLabel(entry_label);
+
+    const Id vertex_count = ctx.ConstU32(3U);
+    const Id primitive_count = ctx.ConstU32(1U);
+    ctx.OpSetMeshOutputsEXT(vertex_count, primitive_count);
+
+    // Leader-only writes for primitive indices: if (local_id.x == 0) indices[0] = (0,1,2)
+    const Id local_id_val = ctx.OpLoad(ctx.U32[3], ctx.local_invocation_id);
+    const Id local_x = ctx.OpCompositeExtract(ctx.U32[1], local_id_val, 0U);
+    const Id is_leader = ctx.OpIEqual(ctx.U1[1], local_x, ctx.u32_zero_value);
+
+    const Id leader_label{ctx.OpLabel()};
+    const Id first_ir_label = program.blocks.front()->Definition<Id>();
+
+    ctx.OpSelectionMerge(first_ir_label, spv::SelectionControlMask::MaskNone);
+    ctx.OpBranchConditional(is_leader, leader_label, first_ir_label);
+
+    ctx.AddLabel(leader_label);
+    const Id indices_ptr_type =
+        ctx.TypePointer(spv::StorageClass::Output, ctx.U32[3]);
+    const Id idx_ptr =
+        ctx.OpAccessChain(indices_ptr_type, ctx.mesh_primitive_indices, ctx.u32_zero_value);
+    const Id indices_val = ctx.ConstU32(0U, 1U, 2U);
+    ctx.OpStore(idx_ptr, indices_val);
+    ctx.OpBranch(first_ir_label);
+}
+
 Id DefineMain(EmitContext& ctx, const IR::Program& program) {
     const Id void_function{ctx.TypeFunction(ctx.void_id)};
     const Id main{ctx.OpFunction(ctx.void_id, spv::FunctionControlMask::MaskNone, void_function)};
     for (IR::Block* const block : program.blocks) {
         block->SetDefinition(ctx.OpLabel());
+    }
+    if (program.info.l_stage == LogicalStage::Mesh) {
+        EmitMeshSetupBlock(ctx, program);
     }
     Traverse(ctx, program);
     ctx.OpFunctionEnd();
@@ -431,10 +465,23 @@ void DefineEntryPoint(const Info& info, EmitContext& ctx, Id main) {
         execution_model = spv::ExecutionModel::TaskEXT;
         UNREACHABLE();
         break;
-    case LogicalStage::Mesh:
+    case LogicalStage::Mesh: {
         execution_model = spv::ExecutionModel::MeshEXT;
-        UNREACHABLE();
+        // MVP: one triangle per workgroup, one thread per vertex.
+        constexpr u32 kMaxVerts = 3u;
+        constexpr u32 kMaxPrims = 1u;
+        constexpr u32 kLocalSize = 3u;
+        const auto prim_mode = MeshExecutionMode(ctx.runtime_info.vs_info.tess_emulated_primitive
+                                                     ? AmdGpu::PrimitiveType::TriangleList
+                                                     : AmdGpu::PrimitiveType::TriangleList);
+        if (prim_mode) {
+            ctx.AddExecutionMode(main, *prim_mode);
+        }
+        ctx.AddExecutionMode(main, spv::ExecutionMode::OutputVertices, kMaxVerts);
+        ctx.AddExecutionMode(main, spv::ExecutionMode::OutputPrimitivesEXT, kMaxPrims);
+        ctx.AddExecutionMode(main, spv::ExecutionMode::LocalSize, kLocalSize, 1U, 1U);
         break;
+    }
     default:
         UNREACHABLE_MSG("Stage {}", u32(info.stage));
     }

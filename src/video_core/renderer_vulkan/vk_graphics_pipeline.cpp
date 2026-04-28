@@ -156,10 +156,12 @@ GraphicsPipeline::GraphicsPipeline(
     if (instance.IsDynamicColorWriteMaskSupported()) {
         dynamic_states.push_back(vk::DynamicState::eColorWriteMaskEXT);
     }
-    if (instance.IsVertexInputDynamicState()) {
-        dynamic_states.push_back(vk::DynamicState::eVertexInputEXT);
-    } else if (!sdata.vertex_bindings.empty()) {
-        dynamic_states.push_back(vk::DynamicState::eVertexInputBindingStride);
+    if (!key.use_mesh_shader) {
+        if (instance.IsVertexInputDynamicState()) {
+            dynamic_states.push_back(vk::DynamicState::eVertexInputEXT);
+        } else if (!sdata.vertex_bindings.empty()) {
+            dynamic_states.push_back(vk::DynamicState::eVertexInputBindingStride);
+        }
     }
 
     const vk::PipelineDynamicStateCreateInfo dynamic_info = {
@@ -170,9 +172,17 @@ GraphicsPipeline::GraphicsPipeline(
     boost::container::static_vector<vk::PipelineShaderStageCreateInfo, MaxShaderStages>
         shader_stages;
     auto stage = u32(Shader::LogicalStage::Vertex);
-    if (infos[stage]) {
+    if (!key.use_mesh_shader && infos[stage]) {
         shader_stages.emplace_back(vk::PipelineShaderStageCreateInfo{
             .stage = vk::ShaderStageFlagBits::eVertex,
+            .module = modules[stage],
+            .pName = "main",
+        });
+    }
+    stage = u32(Shader::LogicalStage::Mesh);
+    if (key.use_mesh_shader && infos[stage]) {
+        shader_stages.emplace_back(vk::PipelineShaderStageCreateInfo{
+            .stage = vk::ShaderStageFlagBits::eMeshEXT,
             .module = modules[stage],
             .pName = "main",
         });
@@ -359,9 +369,14 @@ GraphicsPipeline::GraphicsPipeline(
         .pNext = &pipeline_rendering_ci,
         .stageCount = static_cast<u32>(shader_stages.size()),
         .pStages = shader_stages.data(),
-        .pVertexInputState = !instance.IsVertexInputDynamicState() ? &vertex_input_info : nullptr,
-        .pInputAssemblyState = &input_assembly,
-        .pTessellationState = &tessellation_state,
+        // A mesh pipeline supplies vertices directly from the mesh shader; the fixed-function
+        // vertex input, input assembly, and tessellation states are ignored (and must be NULL).
+        .pVertexInputState = key.use_mesh_shader
+                                 ? nullptr
+                                 : (!instance.IsVertexInputDynamicState() ? &vertex_input_info
+                                                                          : nullptr),
+        .pInputAssemblyState = key.use_mesh_shader ? nullptr : &input_assembly,
+        .pTessellationState = key.use_mesh_shader ? nullptr : &tessellation_state,
         .pViewportState = &viewport_info,
         .pRasterizationState = &raster_chain.get(),
         .pMultisampleState = &sdata.multisampling,

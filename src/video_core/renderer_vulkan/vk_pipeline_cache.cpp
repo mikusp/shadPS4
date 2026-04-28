@@ -36,6 +36,23 @@ constexpr static std::array DescriptorHeapSizes = {
     vk::DescriptorPoolSize{vk::DescriptorType::eSampler, 1024},
 };
 
+static bool IsEligibleForMeshPath(const AmdGpu::Regs& regs, const Shader::Profile& profile) {
+    // Mesh shader path is only available when the host advertises support.
+    if (!profile.supports_mesh_shaders) {
+        return false;
+    }
+    // Only plain VS+PS pipelines (no GS, no tessellation).
+    if (regs.stage_enable.raw != AmdGpu::ShaderStageEnable::VgtStages::Vs) {
+        return false;
+    }
+    // Restrict to triangle lists for the MVP; other topologies need more
+    // primitive-assembly work that isn't in place yet.
+    if (regs.primitive_type != AmdGpu::PrimitiveType::TriangleList) {
+        return false;
+    }
+    return true;
+}
+
 static u32 MapOutputs(std::span<Shader::OutputMap, 3> outputs, const AmdGpu::VsOutputControl& ctl) {
     u32 num_outputs = 0;
 
@@ -512,12 +529,24 @@ bool PipelineCache::RefreshGraphicsStages() {
         }
         break;
     default:
-        bind_stage(Stage::Vertex, LogicalStage::Vertex);
+        if (IsEligibleForMeshPath(regs, profile)) {
+            key.use_mesh_shader = 1u;
+            if (!bind_stage(Stage::Vertex, LogicalStage::Mesh)) {
+                key.use_mesh_shader = 0u;
+                bind_stage(Stage::Vertex, LogicalStage::Vertex);
+            }
+        } else {
+            bind_stage(Stage::Vertex, LogicalStage::Vertex);
+        }
         break;
     }
 
-    const auto* vs_info = infos[static_cast<u32>(Shader::LogicalStage::Vertex)];
-    if (vs_info && fetch_shader && !instance.IsVertexInputDynamicState()) {
+    const auto vs_logical_idx = key.use_mesh_shader
+                                    ? static_cast<u32>(Shader::LogicalStage::Mesh)
+                                    : static_cast<u32>(Shader::LogicalStage::Vertex);
+    const auto* vs_info = infos[vs_logical_idx];
+    if (vs_info && fetch_shader && !key.use_mesh_shader &&
+        !instance.IsVertexInputDynamicState()) {
         // Without vertex input dynamic state, the pipeline needs to specialize on format.
         // Stride will still be handled outside the pipeline using dynamic state.
         u32 vertex_binding = 0;
@@ -578,7 +607,10 @@ PipelineCache::Result PipelineCache::GetProgram(Stage stage, LogicalStage l_stag
                                                 const Shader::ShaderParams& params,
                                                 Shader::Backend::Bindings& binding) {
     auto runtime_info = BuildRuntimeInfo(stage, l_stage);
-    auto [it_pgm, new_program] = program_cache.try_emplace(params.hash);
+    // Mesh and Vertex variants share the same GCN binary hash but must not alias in
+    // the program cache, so combine l_stage into the key.
+    const size_t cache_key = HashCombine(params.hash, static_cast<u64>(l_stage));
+    auto [it_pgm, new_program] = program_cache.try_emplace(cache_key);
     if (new_program) {
         it_pgm.value() = std::make_unique<Program>(stage, l_stage, params);
         auto& program = it_pgm.value();

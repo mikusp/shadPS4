@@ -276,6 +276,15 @@ public:
     Id image_u32{};
     Id image_f32{};
 
+    // Mesh shader outputs
+    Id mesh_per_vertex_type{};
+    Id mesh_vertices_output{};
+    Id mesh_primitive_indices{};
+    u32 mesh_per_vertex_pos_idx{};
+    u32 mesh_per_vertex_psize_idx{};
+    u32 mesh_per_vertex_clip_idx{};
+    u32 mesh_per_vertex_cull_idx{};
+
     Id shared_memory_u16{};
     Id shared_memory_u32{};
     Id shared_memory_u64{};

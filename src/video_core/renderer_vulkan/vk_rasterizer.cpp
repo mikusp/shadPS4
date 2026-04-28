@@ -206,8 +206,10 @@ void Rasterizer::Draw(bool is_indexed, u32 index_offset) {
     }
     const auto state = BeginRendering(pipeline);
 
+    const bool use_mesh = pipeline->GetGraphicsKey().use_mesh_shader;
+
     buffer_cache.BindVertexBuffers(*pipeline);
-    if (is_indexed) {
+    if (is_indexed && !use_mesh) {
         buffer_cache.BindIndexBuffer(index_offset);
     }
 
@@ -222,7 +224,13 @@ void Rasterizer::Draw(bool is_indexed, u32 index_offset) {
     const auto cmdbuf = scheduler.CommandBuffer();
     cmdbuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline->Handle());
 
-    if (is_indexed) {
+    if (use_mesh) {
+        // MVP mesh path: 3 threads per workgroup emit 1 triangle (TriangleList only, no index
+        // buffer). Dispatch ceil(num_indices / 3) workgroups; leftover verts from an unaligned
+        // count are ignored (a well-formed TriangleList always has num_indices % 3 == 0).
+        const u32 num_groups_x = (regs.num_indices + 2u) / 3u;
+        cmdbuf.drawMeshTasksEXT(num_groups_x, 1u, 1u);
+    } else if (is_indexed) {
         cmdbuf.drawIndexed(regs.num_indices, regs.num_instances.NumInstances(), 0,
                            s32(vertex_offset), instance_offset);
     } else {

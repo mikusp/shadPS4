@@ -239,9 +239,37 @@ void Translator::EmitPrologue(IR::Block* first_block) {
         }
         ir.SetVectorReg(IR::VectorReg::V2, ir.GetAttributeU32(IR::Attribute::PrimitiveId));
         break;
+    case LogicalStage::Mesh: {
+        // Mesh path synthesizes VertexId from workgroup/local IDs: one triangle per
+        // workgroup, one thread per vertex within the triangle.
+        const auto workgroup_x = ir.GetAttributeU32(IR::Attribute::WorkgroupId, 0);
+        const auto local_x = ir.GetAttributeU32(IR::Attribute::LocalInvocationId, 0);
+        const auto vertex_id = ir.IAdd(ir.IMul(workgroup_x, ir.Imm32(3u)), local_x);
+        ir.SetVectorReg(dst_vreg++, vertex_id);
+        if (runtime_info.num_input_vgprs > 0) {
+            if (runtime_info.vs_info.step_rate_0 != 0) {
+                ir.SetVectorReg(dst_vreg++,
+                                ir.IDiv(ir.GetAttributeU32(IR::Attribute::InstanceId),
+                                        ir.Imm32(runtime_info.vs_info.step_rate_0)));
+            } else {
+                ir.SetVectorReg(dst_vreg++, ir.Imm32(0));
+            }
+        }
+        if (runtime_info.num_input_vgprs > 1) {
+            if (runtime_info.vs_info.step_rate_1 != 0) {
+                ir.SetVectorReg(dst_vreg++,
+                                ir.IDiv(ir.GetAttributeU32(IR::Attribute::InstanceId),
+                                        ir.Imm32(runtime_info.vs_info.step_rate_1)));
+            } else {
+                ir.SetVectorReg(dst_vreg++, ir.Imm32(0));
+            }
+        }
+        if (runtime_info.num_input_vgprs > 2) {
+            ir.SetVectorReg(dst_vreg++, ir.GetAttributeU32(IR::Attribute::InstanceId));
+        }
+        break;
+    }
     case LogicalStage::Task:
-        UNREACHABLE();
-    case LogicalStage::Mesh:
         UNREACHABLE();
     default:
         UNREACHABLE_MSG("Unknown shader stage");
@@ -596,9 +624,12 @@ void Translator::SetDst64(const InstOperand& operand, const IR::U64F64& value_ra
 void Translator::EmitFetch(const GcnInst& inst) {
     const auto code_sgpr_base = inst.src[0].code;
 
-    // The fetch shader must be inlined to access as regular buffers, so that
-    // bounds checks can be emitted to emulate robust buffer access.
-    if (!profile.supports_robust_buffer_access) {
+    // The fetch shader must be inlined to access as regular buffers when:
+    //  - The profile lacks robust buffer access (needed for software bounds checks), or
+    //  - We're emitting a mesh shader, which has no fixed-function vertex input state and
+    //    therefore can't resolve `GetAttribute(Param0+N)` to input locations; the V# must
+    //    instead be read as a storage buffer via the translated fetch instructions.
+    if (!profile.supports_robust_buffer_access || info.l_stage == LogicalStage::Mesh) {
         const auto* code = GetFetchShaderCode(info, code_sgpr_base);
         GcnCodeSlice slice(code, code + std::numeric_limits<u32>::max());
         GcnDecodeContext decoder;
