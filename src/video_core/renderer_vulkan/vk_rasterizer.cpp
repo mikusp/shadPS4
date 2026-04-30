@@ -195,39 +195,45 @@ void Rasterizer::Draw(bool is_indexed, u32 index_offset) {
     }
 
     const auto& regs = liverpool->regs;
-    const GraphicsPipeline* pipeline = pipeline_cache.GetGraphicsPipeline();
-    if (!pipeline) {
-        return;
+
+    if (!EmulatorSettings.IsShaderObjectsEnabled()) {
+
     }
-
-    PrepareRenderState(pipeline);
-    if (!BindResources(pipeline)) {
-        return;
-    }
-    const auto state = BeginRendering(pipeline);
-
-    buffer_cache.BindVertexBuffers(*pipeline);
-    if (is_indexed) {
-        buffer_cache.BindIndexBuffer(index_offset);
-    }
-
-    pipeline->BindResources(set_writes, buffer_barriers, push_data);
-    UpdateDynamicState(pipeline, is_indexed);
-    scheduler.BeginRendering(state);
-
-    const auto& vs_info = pipeline->GetStage(Shader::LogicalStage::Vertex);
-    const auto& fetch_shader = pipeline->GetFetchShader();
-    const auto [vertex_offset, instance_offset] = GetDrawOffsets(regs, vs_info, fetch_shader);
-
-    const auto cmdbuf = scheduler.CommandBuffer();
-    cmdbuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline->Handle());
-
-    if (is_indexed) {
-        cmdbuf.drawIndexed(regs.num_indices, regs.num_instances.NumInstances(), 0,
-                           s32(vertex_offset), instance_offset);
-    } else {
-        cmdbuf.draw(regs.num_indices, regs.num_instances.NumInstances(), vertex_offset,
-                    instance_offset);
+    else {
+        const GraphicsPipeline* pipeline = pipeline_cache.GetGraphicsPipeline();
+        if (!pipeline) {
+            return;
+        }
+    
+        PrepareRenderState(pipeline);
+        if (!BindResources(pipeline)) {
+            return;
+        }
+        const auto state = BeginRendering(pipeline);
+    
+        buffer_cache.BindVertexBuffers(*pipeline);
+        if (is_indexed) {
+            buffer_cache.BindIndexBuffer(index_offset);
+        }
+    
+        pipeline->BindResources(set_writes, buffer_barriers, push_data);
+        UpdateDynamicState(pipeline, is_indexed);
+        scheduler.BeginRendering(state);
+    
+        const auto& vs_info = pipeline->GetStage(Shader::LogicalStage::Vertex);
+        const auto& fetch_shader = pipeline->GetFetchShader();
+        const auto [vertex_offset, instance_offset] = GetDrawOffsets(regs, vs_info, fetch_shader);
+    
+        const auto cmdbuf = scheduler.CommandBuffer();
+        cmdbuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline->Handle());
+    
+        if (is_indexed) {
+            cmdbuf.drawIndexed(regs.num_indices, regs.num_instances.NumInstances(), 0,
+                               s32(vertex_offset), instance_offset);
+        } else {
+            cmdbuf.draw(regs.num_indices, regs.num_instances.NumInstances(), vertex_offset,
+                        instance_offset);
+        }
     }
 
     ResetBindings();
@@ -243,58 +249,63 @@ void Rasterizer::DrawIndirect(bool is_indexed, VAddr arg_address, u32 offset, u3
         return;
     }
 
-    const GraphicsPipeline* pipeline = pipeline_cache.GetGraphicsPipeline();
-    if (!pipeline) {
-        return;
+    if (!EmulatorSettings.IsShaderObjectsEnabled()) {
+
     }
-
-    PrepareRenderState(pipeline);
-    if (!BindResources(pipeline)) {
-        return;
-    }
-    const auto state = BeginRendering(pipeline);
-
-    buffer_cache.BindVertexBuffers(*pipeline);
-    if (is_indexed) {
-        buffer_cache.BindIndexBuffer(0);
-    }
-
-    const auto& [buffer, base] =
-        buffer_cache.ObtainBuffer(arg_address + offset, stride * max_count, false);
-
-    VideoCore::Buffer* count_buffer{};
-    u32 count_base{};
-    if (count_address != 0) {
-        std::tie(count_buffer, count_base) = buffer_cache.ObtainBuffer(count_address, 4, false);
-    }
-
-    pipeline->BindResources(set_writes, buffer_barriers, push_data);
-    UpdateDynamicState(pipeline, is_indexed);
-    scheduler.BeginRendering(state);
-
-    // We can safely ignore both SGPR UD indices and results of fetch shader parsing, as vertex and
-    // instance offsets will be automatically applied by Vulkan from indirect args buffer.
-
-    const auto cmdbuf = scheduler.CommandBuffer();
-    cmdbuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline->Handle());
-
-    if (is_indexed) {
-        ASSERT(sizeof(VkDrawIndexedIndirectCommand) == stride);
-
-        if (count_address != 0) {
-            cmdbuf.drawIndexedIndirectCount(buffer->Handle(), base, count_buffer->Handle(),
-                                            count_base, max_count, stride);
-        } else {
-            cmdbuf.drawIndexedIndirect(buffer->Handle(), base, max_count, stride);
+    else {
+        const GraphicsPipeline* pipeline = pipeline_cache.GetGraphicsPipeline();
+        if (!pipeline) {
+            return;
         }
-    } else {
-        ASSERT(sizeof(VkDrawIndirectCommand) == stride);
 
+        PrepareRenderState(pipeline);
+        if (!BindResources(pipeline)) {
+            return;
+        }
+        const auto state = BeginRendering(pipeline);
+
+        buffer_cache.BindVertexBuffers(*pipeline);
+        if (is_indexed) {
+            buffer_cache.BindIndexBuffer(0);
+        }
+
+        const auto& [buffer, base] =
+            buffer_cache.ObtainBuffer(arg_address + offset, stride * max_count, false);
+
+        VideoCore::Buffer* count_buffer{};
+        u32 count_base{};
         if (count_address != 0) {
-            cmdbuf.drawIndirectCount(buffer->Handle(), base, count_buffer->Handle(), count_base,
-                                     max_count, stride);
+            std::tie(count_buffer, count_base) = buffer_cache.ObtainBuffer(count_address, 4, false);
+        }
+
+        pipeline->BindResources(set_writes, buffer_barriers, push_data);
+        UpdateDynamicState(pipeline, is_indexed);
+        scheduler.BeginRendering(state);
+
+        // We can safely ignore both SGPR UD indices and results of fetch shader parsing, as vertex and
+        // instance offsets will be automatically applied by Vulkan from indirect args buffer.
+
+        const auto cmdbuf = scheduler.CommandBuffer();
+        cmdbuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline->Handle());
+
+        if (is_indexed) {
+            ASSERT(sizeof(VkDrawIndexedIndirectCommand) == stride);
+
+            if (count_address != 0) {
+                cmdbuf.drawIndexedIndirectCount(buffer->Handle(), base, count_buffer->Handle(),
+                                                count_base, max_count, stride);
+            } else {
+                cmdbuf.drawIndexedIndirect(buffer->Handle(), base, max_count, stride);
+            }
         } else {
-            cmdbuf.drawIndirect(buffer->Handle(), base, max_count, stride);
+            ASSERT(sizeof(VkDrawIndirectCommand) == stride);
+
+            if (count_address != 0) {
+                cmdbuf.drawIndirectCount(buffer->Handle(), base, count_buffer->Handle(), count_base,
+                                        max_count, stride);
+            } else {
+                cmdbuf.drawIndirect(buffer->Handle(), base, max_count, stride);
+            }
         }
     }
 
@@ -469,6 +480,7 @@ bool Rasterizer::BindResources(const ShaderObject* shader_object) {
         return false;
     }
 
+    set_write_index = 0;
     set_writes.clear();
     buffer_barriers.clear();
     buffer_infos.clear();
@@ -480,6 +492,8 @@ bool Rasterizer::BindResources(const ShaderObject* shader_object) {
     Shader::Backend::Bindings binding{};
     push_data = MakeUserData(liverpool->regs);
     const auto& stage = shader_object->GetInfo();
+    set_writes.resize(set_writes.size() + stage.buffers.size() + stage.images.size() +
+                        stage.samplers.size());
     stage.PushUd(binding, push_data);
     BindBuffers(stage, binding, push_data);
     BindTextures(stage, binding);

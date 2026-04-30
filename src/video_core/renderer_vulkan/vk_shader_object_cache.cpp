@@ -121,6 +121,11 @@ const Shader::RuntimeInfo& ShaderObjectCache::BuildRuntimeInfo(Stage stage, Logi
     case Stage::Export: {
         BuildCommon(regs.es_program);
         info.es_info.vertex_data_size = regs.vgt_esgs_ring_itemsize;
+        if (l_stage == LogicalStage::TessellationEval) {
+            info.es_vs_info.tess_type = regs.tess_config.type;
+            info.es_vs_info.tess_topology = regs.tess_config.topology;
+            info.es_vs_info.tess_partitioning = regs.tess_config.partitioning;
+        }
         break;
     }
     case Stage::Vertex: {
@@ -128,6 +133,7 @@ const Shader::RuntimeInfo& ShaderObjectCache::BuildRuntimeInfo(Stage stage, Logi
         info.vs_info.step_rate_0 = regs.vgt_instance_step_rate_0;
         info.vs_info.step_rate_1 = regs.vgt_instance_step_rate_1;
         info.vs_info.num_outputs = MapOutputs(info.vs_info.outputs, regs.vs_output_control);
+        info.vs_info.num_exports = regs.vs_output_config.NumExports();
         info.vs_info.emulate_depth_negative_one_to_one =
             !instance.IsDepthClipControlSupported() &&
             regs.clipper_control.clip_space == AmdGpu::ClipSpace::MinusWToW;
@@ -136,9 +142,9 @@ const Shader::RuntimeInfo& ShaderObjectCache::BuildRuntimeInfo(Stage stage, Logi
             regs.primitive_type == AmdGpu::PrimitiveType::QuadList;
         info.vs_info.clip_disable = regs.IsClipDisabled();
         if (l_stage == LogicalStage::TessellationEval) {
-            info.vs_info.tess_type = regs.tess_config.type;
-            info.vs_info.tess_topology = regs.tess_config.topology;
-            info.vs_info.tess_partitioning = regs.tess_config.partitioning;
+            info.es_vs_info.tess_type = regs.tess_config.type;
+            info.es_vs_info.tess_topology = regs.tess_config.topology;
+            info.es_vs_info.tess_partitioning = regs.tess_config.partitioning;
         }
         break;
     }
@@ -149,7 +155,23 @@ const Shader::RuntimeInfo& ShaderObjectCache::BuildRuntimeInfo(Stage stage, Logi
         gs_info.output_vertices = regs.vgt_gs_max_vert_out;
         gs_info.num_invocations =
             regs.vgt_gs_instance_cnt.IsEnabled() ? regs.vgt_gs_instance_cnt.count : 1;
-        gs_info.in_primitive = regs.primitive_type;
+        if (regs.stage_enable.raw == AmdGpu::ShaderStageEnable::LsHsEsGs) {
+            gs_info.in_primitive = [&]() {
+                switch (regs.tess_config.topology) {
+                case AmdGpu::TessellationTopology::Point:
+                    return AmdGpu::PrimitiveType::PointList;
+                case AmdGpu::TessellationTopology::Line:
+                    return AmdGpu::PrimitiveType::LineList;
+                case AmdGpu::TessellationTopology::TriangleCw:
+                case AmdGpu::TessellationTopology::TriangleCcw:
+                    return AmdGpu::PrimitiveType::TriangleList;
+                default:
+                    UNREACHABLE();
+                }
+            }();
+        } else {
+            gs_info.in_primitive = regs.primitive_type;
+        }
         for (u32 stream_id = 0; stream_id < Shader::GsMaxOutputStreams; ++stream_id) {
             gs_info.out_primitive[stream_id] =
                 regs.vgt_gs_out_prim_type.GetPrimitiveType(stream_id);
@@ -465,7 +487,7 @@ bool ShaderObjectCache::RefreshGraphicsStages() {
     };
 
     infos.fill(nullptr);
-    // modules.fill(nullptr);
+    shaders.fill(nullptr);
     const auto result = bind_stage(Stage::Fragment, LogicalStage::Fragment);
     if (!result && regs.vs_output_control.clip_distance_enable &&
         profile.needs_clip_distance_emulation) {
@@ -511,9 +533,38 @@ bool ShaderObjectCache::RefreshGraphicsStages() {
             return false;
         }
         break;
-    default:
+    case AmdGpu::ShaderStageEnable::VgtStages::LsHsEsGs:
+        if (!instance.IsTessellationSupported() ||
+            (regs.tess_config.type == AmdGpu::TessellationType::Isoline &&
+             !instance.IsTessellationIsolinesSupported())) {
+            return false;
+        }
+        if (!instance.IsGeometryStageSupported()) {
+            LOG_WARNING(Render_Vulkan, "Geometry shader stage unsupported, skipping");
+            return false;
+        }
+        if (regs.vgt_gs_mode.onchip || regs.vgt_strmout_config.raw) {
+            LOG_WARNING(Render_Vulkan, "Geometry shader features unsupported, skipping");
+            return false;
+        }
+        if (!bind_stage(Stage::Hull, LogicalStage::TessellationControl)) {
+            return false;
+        }
+        if (!bind_stage(Stage::Export, LogicalStage::TessellationEval)) {
+            return false;
+        }
+        if (!bind_stage(Stage::Local, LogicalStage::Vertex)) {
+            return false;
+        }
+        if (!bind_stage(Stage::Geometry, LogicalStage::Geometry)) {
+            return false;
+        }
+        break;
+    case AmdGpu::ShaderStageEnable::VgtStages::Vs:
         bind_stage(Stage::Vertex, LogicalStage::Vertex);
         break;
+    default:
+        UNREACHABLE_MSG("unhandled stage_en: {}", (u32)regs.stage_enable.raw);
     }
 
     const auto* vs_info = infos[static_cast<u32>(Shader::LogicalStage::Vertex)];
