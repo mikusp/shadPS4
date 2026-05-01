@@ -104,7 +104,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libc++-dev libc++abi-dev ninja-build libx11-dev libxext-dev libwayland-dev libdecor-0-dev libxkbcommon-dev libxcursor-dev libxi-dev libxss-dev libxtst-dev libxrandr-dev libxfixes-dev libudev-dev uuid-dev uuid-dev
+          sudo apt-get install -y libc++-dev libc++abi-dev ninja-build libx11-dev libxext-dev libwayland-dev libdecor-0-dev libxkbcommon-dev libxcursor-dev libxi-dev libxss-dev libxtst-dev libxrandr-dev libxfixes-dev libudev-dev uuid-dev mesa-vulkan-drivers libvulkan1 vulkan-tools vulkan-validationlayers
 
       # - name: Install dependencies (macOS)
       #   if: runner.os == 'macOS'
@@ -140,7 +140,13 @@ jobs:
         shell: bash
 
       - name: Run tests with CTest
-        run: ctest --test-dir build --output-on-failure --progress -E 'GcnTest'
+        if: runner.os != 'Linux'
+        run: ctest --test-dir build --output-on-failure --progress '-E GcnTest'
+        shell: bash
+
+      - name: Run tests with CTest (including Vulkan)
+        if: runner.os == 'Linux'
+        run: ctest --test-dir build --output-on-failure --progress
         shell: bash
 
   windows-sdl:
