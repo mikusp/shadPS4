@@ -481,29 +481,6 @@ void SetupDenormFlushMode(EmitContext& ctx, const Profile& profile, const Runtim
                 LOG_WARNING(Render_Vulkan, "Float64 denorm preserving is not supported by the GPU");
             });
         }
-    } else if (fp16_64_denorm_mode == AmdGpu::FpDenormMode::InOutAllow) {
-        if (profile.support_fp16_denorm_preserve) {
-            ctx.AddCapability(spv::Capability::DenormPreserve);
-            ctx.AddExecutionMode(main_func, spv::ExecutionMode::DenormPreserve, 16U);
-        }
-        else {
-            static bool logged = false;
-            if (!logged) {
-                logged = true;
-                LOG_WARNING(Render_Vulkan, "Float16 denorm preserving is not supported by the GPU");
-            }
-        }
-        if (profile.support_fp64_denorm_preserve) {
-            ctx.AddCapability(spv::Capability::DenormPreserve);
-            ctx.AddExecutionMode(main_func, spv::ExecutionMode::DenormPreserve, 64U);
-        }
-        else {
-            static bool logged = false;
-            if (!logged) {
-                logged = true;
-                LOG_WARNING(Render_Vulkan, "Float64 denorm preserving is not supported by the GPU");
-            }
-        }
     } else {
         LOG_WARNING(Render_Vulkan, "Unknown Float16/64 denorm mode {}", u32(fp16_64_denorm_mode));
     }
