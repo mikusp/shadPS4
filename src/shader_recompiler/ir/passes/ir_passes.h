@@ -18,6 +18,7 @@ void SsaRewritePass(IR::BlockList& program);
 void IdentityRemovalPass(IR::BlockList& program);
 void DeadCodeEliminationPass(IR::Program& program);
 void ConstantPropagationPass(IR::BlockList& program);
+void UnreachableWarningPass(IR::Program& program, const Profile& profile);
 void FlattenExtendedUserdataPass(IR::Program& program);
 void ReadLaneEliminationPass(IR::Program& program);
 void ResourceTrackingPass(IR::Program& program, const Profile& profile);
