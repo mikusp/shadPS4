@@ -298,6 +298,7 @@ public:
     void V_MAD_F16(const GcnInst& inst);
     void V_MIN3_F16(const GcnInst& inst);
     void V_MAX3_F16(const GcnInst& inst);
+    void V_MED3_F16(const GcnInst& inst);
     void V_MAD_I16(const GcnInst& inst);
     void V_ADD3_U32(const GcnInst& inst);
     void V_LSHL_OR_B32(const GcnInst& inst);
