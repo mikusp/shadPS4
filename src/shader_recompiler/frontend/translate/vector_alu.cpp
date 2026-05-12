@@ -1987,10 +1987,9 @@ void Translator::V_MAD_I16(const GcnInst& inst) {
     const auto src1 = GetSrc16<IR::U32, true>(inst.src[1]);
     const auto src2 = GetSrc16<IR::U32, true>(inst.src[2]);
 
-    const auto result = ir.FPFma(ir.ConvertSToF(32, 32, src0), ir.ConvertSToF(32, 32, src1),
-                                 ir.ConvertSToF(32, 32, src2));
+    const auto result = ir.IAdd(ir.IMul(src0, src1), src2);
 
-    SetDst16<true>(inst.dst[0], ir.ConvertFToS(32, result));
+    SetDst16<true>(inst.dst[0], result);
 }
 
 void Translator::V_ADD3_U32(const GcnInst& inst) {
@@ -2047,8 +2046,8 @@ void Translator::V_PK_MUL_LO_U16(const GcnInst& inst) {
 }
 
 void Translator::V_PK_ADD_I16(const GcnInst& inst) {
-    const auto src0 = GetSrcPk<IR::U32>(inst.src[0]);
-    const auto src1 = GetSrcPk<IR::U32>(inst.src[1]);
+    const auto src0 = GetSrcPk<IR::U32, true>(inst.src[0]);
+    const auto src1 = GetSrcPk<IR::U32, true>(inst.src[1]);
 
     const auto result_lo = ir.IAdd(src0.first, src1.first);
     const auto result_hi = ir.IAdd(src0.second, src1.second);
@@ -2060,8 +2059,8 @@ void Translator::V_PK_ADD_I16(const GcnInst& inst) {
 }
 
 void Translator::V_PK_SUB_I16(const GcnInst& inst) {
-    const auto src0 = GetSrcPk<IR::U32>(inst.src[0]);
-    const auto src1 = GetSrcPk<IR::U32>(inst.src[1]);
+    const auto src0 = GetSrcPk<IR::U32, true>(inst.src[0]);
+    const auto src1 = GetSrcPk<IR::U32, true>(inst.src[1]);
 
     const auto result_lo = ir.ISub(src0.first, src1.first);
     const auto result_hi = ir.ISub(src0.second, src1.second);
@@ -2073,47 +2072,29 @@ void Translator::V_PK_SUB_I16(const GcnInst& inst) {
 }
 
 void Translator::V_PK_LSHLREV_B16(const GcnInst& inst) {
-    const auto shift = GetSrc<IR::U32>(inst.src[0]);
-    const auto src = GetSrc<IR::U32>(inst.src[1]);
+    const auto shift = GetSrcPk<IR::U32>(inst.src[0]);
+    const auto src = GetSrcPk<IR::U32>(inst.src[1]);
 
-    const auto lo_shift =
-        ir.BitFieldExtract(shift, ir.Imm32(inst.src[0].op_sel.op_sel * 16), ir.Imm32(4));
-    const auto hi_shift =
-        ir.BitFieldExtract(shift, ir.Imm32(inst.src[0].op_sel.op_sel_hi * 16), ir.Imm32(4));
+    const auto result_lo = ir.ShiftLeftLogical(src.first, shift.first);
+    const auto result_hi = ir.ShiftLeftLogical(src.second, shift.second);
 
-    const auto result_lo = ir.ShiftLeftLogical(
-        ir.BitFieldExtract(src, ir.Imm32(inst.src[1].op_sel.op_sel * 16), ir.Imm32(16)), lo_shift);
-    const auto result_hi = ir.ShiftLeftLogical(
-        ir.BitFieldExtract(src, ir.Imm32(inst.src[1].op_sel.op_sel_hi * 16), ir.Imm32(16)),
-        hi_shift);
-
-    const auto result =
-        ir.BitFieldInsert(ir.BitFieldInsert(ir.Imm32(0), result_lo, ir.Imm32(0), ir.Imm32(16)),
-                          result_hi, ir.Imm32(16), ir.Imm32(16));
-
-    SetDst(inst.dst[0], result);
+    SetDst(inst.dst[0],
+           ir.Pack2x16(AmdGpu::NumberFormat::Uint,
+                       ir.CompositeConstruct(ir.BitCast<IR::F32, IR::U32>(result_lo),
+                                             ir.BitCast<IR::F32, IR::U32>(result_hi))));
 }
 
 void Translator::V_PK_LSHRREV_B16(const GcnInst& inst) {
-    const auto shift = GetSrc<IR::U32>(inst.src[0]);
-    const auto src = GetSrc<IR::U32>(inst.src[1]);
+    const auto shift = GetSrcPk<IR::U32>(inst.src[0]);
+    const auto src = GetSrcPk<IR::U32>(inst.src[1]);
 
-    const auto lo_shift =
-        ir.BitFieldExtract(shift, ir.Imm32(inst.src[0].op_sel.op_sel * 16), ir.Imm32(4));
-    const auto hi_shift =
-        ir.BitFieldExtract(shift, ir.Imm32(inst.src[0].op_sel.op_sel_hi * 16), ir.Imm32(4));
+    const auto result_lo = ir.ShiftRightLogical(src.first, shift.first);
+    const auto result_hi = ir.ShiftRightLogical(src.second, shift.second);
 
-    const auto result_lo = ir.ShiftRightLogical(
-        ir.BitFieldExtract(src, ir.Imm32(inst.src[1].op_sel.op_sel * 16), ir.Imm32(16)), lo_shift);
-    const auto result_hi = ir.ShiftRightLogical(
-        ir.BitFieldExtract(src, ir.Imm32(inst.src[1].op_sel.op_sel_hi * 16), ir.Imm32(16)),
-        hi_shift);
-
-    const auto result =
-        ir.BitFieldInsert(ir.BitFieldInsert(ir.Imm32(0), result_lo, ir.Imm32(0), ir.Imm32(16)),
-                          result_hi, ir.Imm32(16), ir.Imm32(16));
-
-    SetDst(inst.dst[0], result);
+    SetDst(inst.dst[0],
+           ir.Pack2x16(AmdGpu::NumberFormat::Uint,
+                       ir.CompositeConstruct(ir.BitCast<IR::F32, IR::U32>(result_lo),
+                                             ir.BitCast<IR::F32, IR::U32>(result_hi))));
 }
 
 void Translator::V_PK_MAD_U16(const GcnInst& inst) {

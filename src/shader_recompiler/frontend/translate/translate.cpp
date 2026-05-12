@@ -801,7 +801,7 @@ T Translator::GetSrc64(const InstOperand& operand) {
 template IR::U64 Translator::GetSrc64<IR::U64>(const InstOperand&);
 template IR::F64 Translator::GetSrc64<IR::F64>(const InstOperand&);
 
-template <typename T>
+template <typename T, bool is_signed>
 pk_type<T> Translator::GetSrcPk(const InstOperand& operand) {
     constexpr bool is_float = std::is_same_v<T, IR::F32>;
 
@@ -829,7 +829,8 @@ pk_type<T> Translator::GetSrcPk(const InstOperand& operand) {
         if constexpr (is_float) {
             return value;
         } else {
-            return ir.BitCast<IR::U32>(value);
+            return ir.BitFieldExtract(ir.BitCast<IR::U32>(value), ir.Imm32(0), ir.Imm32(16),
+                                      is_signed);
         }
     };
 
@@ -926,8 +927,9 @@ pk_type<T> Translator::GetSrcPk(const InstOperand& operand) {
     return value;
 }
 
-template pk_type<IR::U32> Translator::GetSrcPk<IR::U32>(const InstOperand&);
-template pk_type<IR::F32> Translator::GetSrcPk<IR::F32>(const InstOperand&);
+template pk_type<IR::U32> Translator::GetSrcPk<IR::U32, true>(const InstOperand&);
+template pk_type<IR::U32> Translator::GetSrcPk<IR::U32, false>(const InstOperand&);
+template pk_type<IR::F32> Translator::GetSrcPk<IR::F32, false>(const InstOperand&);
 
 void Translator::SetDst1(const InstOperand& operand, const IR::U1& value) {
     switch (operand.field) {

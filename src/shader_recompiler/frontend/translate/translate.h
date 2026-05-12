@@ -369,7 +369,7 @@ private:
     template <typename T = IR::U64>
     [[nodiscard]] T GetSrc64(const InstOperand& operand);
     [[nodiscard]] IR::F32 GetSrcMix(const InstOperand& operand);
-    template <typename T = IR::U32>
+    template <typename T = IR::U32, bool is_signed = false>
     [[nodiscard]] pk_type<T> GetSrcPk(const InstOperand& operand);
     void SetDst1(const InstOperand& operand, const IR::U1& value);
     void SetDst(const InstOperand& operand, const IR::U32F32& value);
