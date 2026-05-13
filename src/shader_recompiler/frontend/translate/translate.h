@@ -376,6 +376,8 @@ private:
     template <bool is_signed = false>
     void SetDst16(const InstOperand& operand, const IR::U32F32& value);
     void SetDst64(const InstOperand& operand, const IR::U64F64& value_raw);
+    template <typename T = IR::U32, bool is_signed = false>
+    void SetDstPk(const InstOperand& operand, const pk_type<T>& value);
 
     IR::U8U16U32 SdwaSelect(const IR::U32& value, SdwaSelector sel, bool is_signed);
 

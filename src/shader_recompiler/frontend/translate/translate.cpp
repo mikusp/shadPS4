@@ -1117,6 +1117,42 @@ void Translator::SetDst16(const InstOperand& operand, const IR::U32F32& value) {
 template void Translator::SetDst16<false>(const InstOperand&, const IR::U32F32& value);
 template void Translator::SetDst16<true>(const InstOperand&, const IR::U32F32& value);
 
+template <typename T, bool is_signed>
+void Translator::SetDstPk(const InstOperand& operand, const pk_type<T>& value) {
+    pk_type<T> v = value;
+
+    if constexpr (std::is_same_v<T, IR::F32>) {
+        if (operand.output_modifier.clamp) {
+            v = {ir.FPSaturate(v.first), ir.FPSaturate(v.second)};
+        }
+    } else {
+        if (operand.output_modifier.clamp) {
+            if constexpr (is_signed) {
+                auto lower = ir.Imm32(-32768);
+                auto upper = ir.Imm32(32767);
+                v = {ir.SClamp(v.first, lower, upper), ir.SClamp(v.second, lower, upper)};
+            } else {
+                auto imm = ir.Imm32(0xFFFF);
+                v = {ir.UMin(v.first, imm), ir.UMin(v.second, imm)};
+            }
+        }
+    }
+
+    IR::U32 value_raw{};
+    if constexpr (std::is_same_v<T, IR::F32>) {
+        value_raw = ir.Pack2x16(AmdGpu::NumberFormat::Float, ir.CompositeConstruct(v.first, v.second));
+    } else {
+        value_raw = ir.Pack2x16(AmdGpu::NumberFormat::Uint,
+            ir.CompositeConstruct(ir.BitCast<IR::F32, IR::U32>(v.first),
+                                  ir.BitCast<IR::F32, IR::U32>(v.second)));
+    }
+    SetDst(operand, value_raw);
+}
+
+template void Translator::SetDstPk<IR::U32, false>(const InstOperand& operand, const pk_type<IR::U32>& value);
+template void Translator::SetDstPk<IR::U32, true>(const InstOperand& operand, const pk_type<IR::U32>& value);
+template void Translator::SetDstPk<IR::F32, false>(const InstOperand& operand, const pk_type<IR::F32>& value);
+
 void Translator::SetDst64(const InstOperand& operand, const IR::U64F64& value_raw) {
     IR::U64F64 value_untyped = value_raw;
 

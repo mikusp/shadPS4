@@ -2039,10 +2039,7 @@ void Translator::V_PK_MUL_LO_U16(const GcnInst& inst) {
     const auto result_lo = ir.IAdd(src0.first, src1.first);
     const auto result_hi = ir.IAdd(src0.second, src1.second);
 
-    SetDst(inst.dst[0],
-           ir.Pack2x16(AmdGpu::NumberFormat::Uint,
-                       ir.CompositeConstruct(ir.BitCast<IR::F32, IR::U32>(result_lo),
-                                             ir.BitCast<IR::F32, IR::U32>(result_hi))));
+    SetDstPk<IR::U32, false>(inst.dst[0], {result_lo, result_hi});
 }
 
 void Translator::V_PK_ADD_I16(const GcnInst& inst) {
@@ -2052,10 +2049,7 @@ void Translator::V_PK_ADD_I16(const GcnInst& inst) {
     const auto result_lo = ir.IAdd(src0.first, src1.first);
     const auto result_hi = ir.IAdd(src0.second, src1.second);
 
-    SetDst(inst.dst[0],
-           ir.Pack2x16(AmdGpu::NumberFormat::Uint,
-                       ir.CompositeConstruct(ir.BitCast<IR::F32, IR::U32>(result_lo),
-                                             ir.BitCast<IR::F32, IR::U32>(result_hi))));
+    SetDstPk<IR::U32, true>(inst.dst[0], {result_lo, result_hi});
 }
 
 void Translator::V_PK_SUB_I16(const GcnInst& inst) {
@@ -2065,10 +2059,7 @@ void Translator::V_PK_SUB_I16(const GcnInst& inst) {
     const auto result_lo = ir.ISub(src0.first, src1.first);
     const auto result_hi = ir.ISub(src0.second, src1.second);
 
-    SetDst(inst.dst[0],
-           ir.Pack2x16(AmdGpu::NumberFormat::Uint,
-                       ir.CompositeConstruct(ir.BitCast<IR::F32, IR::U32>(result_lo),
-                                             ir.BitCast<IR::F32, IR::U32>(result_hi))));
+    SetDstPk<IR::U32, true>(inst.dst[0], {result_lo, result_hi});
 }
 
 void Translator::V_PK_LSHLREV_B16(const GcnInst& inst) {
@@ -2105,10 +2096,7 @@ void Translator::V_PK_MAD_U16(const GcnInst& inst) {
     const auto result_lo = ir.IAdd(ir.IMul(src0.first, src1.first), src2.first);
     const auto result_hi = ir.IAdd(ir.IMul(src0.second, src1.second), src2.second);
 
-    SetDst(inst.dst[0],
-           ir.Pack2x16(AmdGpu::NumberFormat::Uint,
-                       ir.CompositeConstruct(ir.BitCast<IR::F32, IR::U32>(result_lo),
-                                             ir.BitCast<IR::F32, IR::U32>(result_hi))));
+    SetDstPk<IR::U32, false>(inst.dst[0], {result_lo, result_hi});
 }
 
 void Translator::V_PK_ADD_U16(const GcnInst& inst) {
@@ -2118,10 +2106,7 @@ void Translator::V_PK_ADD_U16(const GcnInst& inst) {
     const auto result_lo = ir.IAdd(src0.first, src1.first);
     const auto result_hi = ir.IAdd(src0.second, src1.second);
 
-    SetDst(inst.dst[0],
-           ir.Pack2x16(AmdGpu::NumberFormat::Uint,
-                       ir.CompositeConstruct(ir.BitCast<IR::F32, IR::U32>(result_lo),
-                                             ir.BitCast<IR::F32, IR::U32>(result_hi))));
+    SetDstPk<IR::U32, false>(inst.dst[0], {result_lo, result_hi});
 }
 
 void Translator::V_PK_SUB_U16(const GcnInst& inst) {
@@ -2131,10 +2116,7 @@ void Translator::V_PK_SUB_U16(const GcnInst& inst) {
     const auto result_lo = ir.ISub(src0.first, src1.first);
     const auto result_hi = ir.ISub(src0.second, src1.second);
 
-    SetDst(inst.dst[0],
-           ir.Pack2x16(AmdGpu::NumberFormat::Uint,
-                       ir.CompositeConstruct(ir.BitCast<IR::F32, IR::U32>(result_lo),
-                                             ir.BitCast<IR::F32, IR::U32>(result_hi))));
+    SetDstPk<IR::U32, false>(inst.dst[0], {result_lo, result_hi});
 }
 
 void Translator::V_PK_MAX_U16(const GcnInst& inst) {
@@ -2144,10 +2126,7 @@ void Translator::V_PK_MAX_U16(const GcnInst& inst) {
     const auto result_lo = ir.UMax(src0.first, src1.first);
     const auto result_hi = ir.UMax(src0.second, src1.second);
 
-    SetDst(inst.dst[0],
-           ir.Pack2x16(AmdGpu::NumberFormat::Uint,
-                       ir.CompositeConstruct(ir.BitCast<IR::F32, IR::U32>(result_lo),
-                                             ir.BitCast<IR::F32, IR::U32>(result_hi))));
+    SetDstPk<IR::U32, false>(inst.dst[0], {result_lo, result_hi});
 }
 
 void Translator::V_PK_MIN_U16(const GcnInst& inst) {
@@ -2157,10 +2136,7 @@ void Translator::V_PK_MIN_U16(const GcnInst& inst) {
     const auto result_lo = ir.UMin(src0.first, src1.first);
     const auto result_hi = ir.UMin(src0.second, src1.second);
 
-    SetDst(inst.dst[0],
-           ir.Pack2x16(AmdGpu::NumberFormat::Uint,
-                       ir.CompositeConstruct(ir.BitCast<IR::F32, IR::U32>(result_lo),
-                                             ir.BitCast<IR::F32, IR::U32>(result_hi))));
+    SetDstPk<IR::U32, false>(inst.dst[0], {result_lo, result_hi});
 }
 
 void Translator::V_PK_FMA_F16(const GcnInst& inst) {
@@ -2171,8 +2147,7 @@ void Translator::V_PK_FMA_F16(const GcnInst& inst) {
     const auto result_lo = ir.FPFma(src0.first, src1.first, src2.first);
     const auto result_hi = ir.FPFma(src0.second, src1.second, src2.second);
 
-    SetDst(inst.dst[0],
-           ir.Pack2x16(AmdGpu::NumberFormat::Float, ir.CompositeConstruct(result_lo, result_hi)));
+    SetDstPk<IR::F32>(inst.dst[0], {result_lo, result_hi});
 }
 
 void Translator::V_PK_ADD_F16(const GcnInst& inst) {
@@ -2182,8 +2157,7 @@ void Translator::V_PK_ADD_F16(const GcnInst& inst) {
     const auto result_lo = ir.FPAdd(src0.first, src1.first);
     const auto result_hi = ir.FPAdd(src0.second, src1.second);
 
-    SetDst(inst.dst[0],
-           ir.Pack2x16(AmdGpu::NumberFormat::Float, ir.CompositeConstruct(result_lo, result_hi)));
+    SetDstPk<IR::F32>(inst.dst[0], {result_lo, result_hi});
 }
 
 void Translator::V_PK_MUL_F16(const GcnInst& inst) {
@@ -2193,8 +2167,7 @@ void Translator::V_PK_MUL_F16(const GcnInst& inst) {
     const auto result_lo = ir.FPMul(src0.first, src1.first);
     const auto result_hi = ir.FPMul(src0.second, src1.second);
 
-    SetDst(inst.dst[0],
-           ir.Pack2x16(AmdGpu::NumberFormat::Float, ir.CompositeConstruct(result_lo, result_hi)));
+    SetDstPk<IR::F32>(inst.dst[0], {result_lo, result_hi});
 }
 
 void Translator::V_PK_MIN_F16(const GcnInst& inst) {
@@ -2204,8 +2177,7 @@ void Translator::V_PK_MIN_F16(const GcnInst& inst) {
     const auto result_lo = ir.FPMin(src0.first, src1.first);
     const auto result_hi = ir.FPMin(src0.second, src1.second);
 
-    SetDst(inst.dst[0],
-           ir.Pack2x16(AmdGpu::NumberFormat::Float, ir.CompositeConstruct(result_lo, result_hi)));
+    SetDstPk<IR::F32>(inst.dst[0], {result_lo, result_hi});
 }
 
 void Translator::V_PK_MAX_F16(const GcnInst& inst) {
@@ -2215,8 +2187,7 @@ void Translator::V_PK_MAX_F16(const GcnInst& inst) {
     const auto result_lo = ir.FPMax(src0.first, src1.first);
     const auto result_hi = ir.FPMax(src0.second, src1.second);
 
-    SetDst(inst.dst[0],
-           ir.Pack2x16(AmdGpu::NumberFormat::Float, ir.CompositeConstruct(result_lo, result_hi)));
+    SetDstPk<IR::F32>(inst.dst[0], {result_lo, result_hi});
 }
 
 void Translator::V_MAD_MIX_F32(const GcnInst& inst) {
