@@ -657,9 +657,18 @@ IR::F32 Translator::GetSrcMix(const InstOperand& operand) {
         }
         break;
     }
-    case OperandField::VccHi:
-        UNREACHABLE();
+    case OperandField::VccHi: {
+        if (!operand.op_sel.op_sel_hi) {
+            value = ir.BitCast<IR::F32>(ir.GetVccHi());
+        } else if (operand.op_sel.op_sel) {
+            value = IR::F32{
+                ir.CompositeExtract(ir.Unpack2x16(AmdGpu::NumberFormat::Float, ir.GetVccHi()), 1)};
+        } else {
+            value = IR::F32{
+                ir.CompositeExtract(ir.Unpack2x16(AmdGpu::NumberFormat::Float, ir.GetVccHi()), 0)};
+        }
         break;
+    }
     case OperandField::M0:
         UNREACHABLE();
         break;
