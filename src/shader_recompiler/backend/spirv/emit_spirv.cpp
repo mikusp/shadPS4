@@ -287,6 +287,13 @@ void SetupCapabilities(const Info& info, const Profile& profile, const RuntimeIn
     if (info.uses_group_ballot) {
         ctx.AddCapability(spv::Capability::GroupNonUniformBallot);
     }
+    if (info.uses_shader_clock) {
+        ASSERT_MSG(ctx.profile.supports_shader_subgroup_clock,
+                   "Shader requires support for ShaderClockKHR capability that your Vulkan "
+                   "instance does not advertise");
+        ctx.AddExtension("SPV_KHR_shader_clock");
+        ctx.AddCapability(spv::Capability::ShaderClockKHR);
+    }
     const auto stage = info.l_stage;
     if (stage == LogicalStage::Vertex) {
         ctx.AddExtension("SPV_KHR_shader_draw_parameters");

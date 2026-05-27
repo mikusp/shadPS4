@@ -2176,4 +2176,8 @@ void IREmitter::EmitPrimitive() {
     Inst(Opcode::EmitPrimitive);
 }
 
+U64 IREmitter::Memtime() {
+    return Inst<U64>(Opcode::Memtime);
+}
+
 } // namespace Shader::IR

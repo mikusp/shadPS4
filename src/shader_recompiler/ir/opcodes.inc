@@ -455,3 +455,6 @@ OPCODE(BallotFindLsb,                                       U32,            U32x
 OPCODE(DataAppend,                                          U32,            U32,            U32                                                             )
 OPCODE(DataConsume,                                         U32,            U32,            U32                                                             )
 OPCODE(GroupAny,                                            U1,             U1,                                                                             )
+
+// Time operations
+OPCODE(Memtime,                                             U64,                                                                                            )

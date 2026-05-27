@@ -410,6 +410,7 @@ public:
 
     void EmitVertex();
     void EmitPrimitive();
+    U64 Memtime();
 
 private:
     IR::Block::iterator insertion_point;
