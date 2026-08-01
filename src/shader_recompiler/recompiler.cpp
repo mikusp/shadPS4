@@ -79,6 +79,8 @@ IR::Program TranslateProgram(const std::span<const u32>& code, Pools& pools, Inf
     }
     Shader::Optimization::RingAccessElimination(program, runtime_info);
     Shader::Optimization::ReadLaneEliminationPass(program);
+    // Shader::Optimization::IdentityRemovalPass(program.blocks);
+    Shader::IR::DumpProgram(program, info, "idenremovalprediscover");
     auto resources = Shader::Optimization::ResourceDiscoverPass(program, profile);
     Shader::Optimization::FlattenExtendedUserdataPass(program);
     Shader::Optimization::ResourcePatchingPass(program.info, resources, profile);
@@ -91,7 +93,7 @@ IR::Program TranslateProgram(const std::span<const u32>& code, Pools& pools, Inf
     Shader::Optimization::ConstantPropagationPass(program.post_order_blocks);
     Shader::Optimization::CollectShaderInfoPass(program, profile);
 
-    Shader::IR::DumpProgram(program, info);
+    // Shader::IR::DumpProgram(program, info);
 
     return program;
 }

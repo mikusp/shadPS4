@@ -56,11 +56,53 @@ static bool IsPossibleToEliminate(IR::Inst* inst, u32 lane) {
 }
 
 using PhiMap = std::unordered_map<IR::Inst*, IR::Inst*>;
+using NewPhiList = boost::container::small_vector<IR::Inst*, 16>;
 
-static IR::Value GetRealValue(PhiMap& phi_map, IR::Inst* inst, u32 lane) {
-    // If this is a WriteLane op search the chain for a possible candidate.
+// Replaces a phi that merges a single real value with that value and erases it. Real
+// arguments are the unique arguments of the phi, excluding the ones pointing back at itself,
+// which the cycle breaking in GetRealValue introduces. Must only run once the phi tree is
+// fully built, so that every reference to the phi is a registered use.
+static void TryRemoveTrivialPhi(IR::Inst* phi) {
+    if (phi->GetOpcode() != IR::Opcode::Phi) {
+        // Already removed by an earlier cascade.
+        return;
+    }
+    const IR::Value self{phi};
+    IR::Value same{};
+    for (size_t arg_index = 0; arg_index < phi->NumArgs(); arg_index++) {
+        const IR::Value arg = phi->Arg(arg_index).Resolve();
+        if (arg == self || arg == same) {
+            // Self reference or a repeat of an argument we already counted.
+            continue;
+        }
+        if (!same.IsEmpty()) {
+            // The phi merges more than one real value, keep it.
+            return;
+        }
+        same = arg;
+    }
+    if (same.IsEmpty()) {
+        // Degenerate phi without any real argument, leave it alone.
+        return;
+    }
+    // Copy since ReplaceUsesWithAndRemove will rewrite the users.
+    const auto users = phi->Uses();
+    phi->ReplaceUsesWithAndRemove(same);
+    phi->GetParent()->Instructions().erase(IR::Block::InstructionList::s_iterator_to(*phi));
+    // Rewriting a user may have turned one of its arguments into a self reference.
+    for (const auto& [user, arg_index] : users) {
+        if (user != phi) {
+            TryRemoveTrivialPhi(user);
+        }
+    }
+}
+
+static IR::Value GetRealValue(PhiMap& phi_map, NewPhiList& new_phis, IR::Inst* inst, u32 lane) {
+    // If this is a WriteLane op search the chain for a possible candidate. The value is
+    // resolved as Use/UndoUse key on the direct instruction while being gated on
+    // IsImmediate, which sees through identities, so an identity must never be stored.
     if (inst = SearchChain(inst, lane); inst->GetOpcode() == IR::Opcode::WriteLane) {
-        return inst->Arg(1);
+        return inst->Arg(1).Resolve();
     }
 
     // If this is a phi, duplicate it and populate its arguments with real values.
@@ -77,22 +119,22 @@ static IR::Value GetRealValue(PhiMap& phi_map, IR::Inst* inst, u32 lane) {
         IR::Inst* new_phi{&*block->PrependNewInst(insert_point, IR::Opcode::Phi)};
         new_phi->SetFlags(IR::Type::U32);
         it->second = new_phi;
+        new_phis.push_back(new_phi);
 
-        // Gather all arguments.
+        // Gather all arguments. Trivial phis are only removed once the whole tree is built,
+        // as until then the arguments gathered here are not registered as uses yet and would
+        // be left dangling by a removal.
         boost::container::static_vector<IR::Value, 5> phi_args;
         for (size_t arg_index = 0; arg_index < inst->NumArgs(); arg_index++) {
-            IR::Inst* arg_prod = inst->Arg(arg_index).InstRecursive();
-            const IR::Value arg = GetRealValue(phi_map, arg_prod, lane);
-            phi_args.push_back(arg);
+            const IR::Value arg_value = inst->Arg(arg_index);
+            // An immediate incoming value is the same on every lane, forward it as-is.
+            phi_args.push_back(arg_value.IsImmediate()
+                                   ? arg_value.Resolve()
+                                   : GetRealValue(phi_map, new_phis,
+                                                  arg_value.InstRecursive(), lane));
         }
-        const IR::Value arg0 = phi_args[0].Resolve();
-        if (std::ranges::all_of(phi_args,
-                                [&](const IR::Value& arg) { return arg.Resolve() == arg0; })) {
-            new_phi->ReplaceUsesWith(arg0);
-        } else {
-            for (size_t arg_index = 0; arg_index < inst->NumArgs(); arg_index++) {
-                new_phi->AddPhiOperand(inst->PhiBlock(arg_index), phi_args[arg_index]);
-            }
+        for (size_t arg_index = 0; arg_index < inst->NumArgs(); arg_index++) {
+            new_phi->AddPhiOperand(inst->PhiBlock(arg_index), phi_args[arg_index]);
         }
         return IR::Value{new_phi};
     }
@@ -101,12 +143,12 @@ static IR::Value GetRealValue(PhiMap& phi_map, IR::Inst* inst, u32 lane) {
 
 void ReadLaneEliminationPass(IR::Program& program) {
     PhiMap phi_map;
+    NewPhiList new_phis;
     for (IR::Block* const block : program.blocks) {
-        for (IR::Inst& inst : block->Instructions()) {
-            if (inst.GetOpcode() != IR::Opcode::ReadLane) {
-                continue;
-            }
-            if (!inst.Arg(1).IsImmediate()) {
+        for (auto it = block->begin(); it != block->end();) {
+            IR::Inst& inst{*it};
+            if (inst.GetOpcode() != IR::Opcode::ReadLane || !inst.Arg(1).IsImmediate()) {
+                ++it;
                 continue;
             }
 
@@ -115,15 +157,26 @@ void ReadLaneEliminationPass(IR::Program& program) {
 
             // Check simple case of no control flow and phis
             if (prod = SearchChain(prod, lane); prod->GetOpcode() == IR::Opcode::WriteLane) {
-                inst.ReplaceUsesWith(prod->Arg(1));
+                inst.ReplaceUsesWithAndRemove(prod->Arg(1).Resolve());
+                it = block->Instructions().erase(it);
                 continue;
             }
 
             // Traverse the phi tree to see if it's possible to eliminate
             if (prod->GetOpcode() == IR::Opcode::Phi && IsPossibleToEliminate(prod, lane)) {
-                inst.ReplaceUsesWith(GetRealValue(phi_map, prod, lane));
+                inst.ReplaceUsesWithAndRemove(GetRealValue(phi_map, new_phis, prod, lane));
+                // Now that the tree is complete and every reference to it is a registered
+                // use, the phis that turned out to merge a single value can be removed.
+                for (IR::Inst* const new_phi : new_phis) {
+                    TryRemoveTrivialPhi(new_phi);
+                }
                 phi_map.clear();
+                new_phis.clear();
+                // Erased last, as the loop above may erase instructions of this block too.
+                it = block->Instructions().erase(it);
+                continue;
             }
+            ++it;
         }
     }
 }
