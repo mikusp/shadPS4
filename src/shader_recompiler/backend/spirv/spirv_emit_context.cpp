@@ -313,6 +313,11 @@ void EmitContext::DefineInputs() {
             U32[1], spv::BuiltIn::SubgroupLocalInvocationId, spv::StorageClass::Input);
         Decorate(subgroup_local_invocation_id, spv::Decoration::Flat);
     }
+    if (info.uses_group_shuffle) {
+        subgroup_size = DefineVariable(
+            U32[1], spv::BuiltIn::SubgroupSize, spv::StorageClass::Input);
+        Decorate(subgroup_size, spv::Decoration::Flat);
+    }
     switch (l_stage) {
     case LogicalStage::Vertex: {
         vertex_index = DefineVariable(U32[1], spv::BuiltIn::VertexIndex, spv::StorageClass::Input);

@@ -465,8 +465,11 @@ Id EmitImageAtomicCmpSwap32(EmitContext& ctx, IR::Inst* inst, u32 handle, Id add
                             Id cmp_value);
 Id EmitCubeFaceIndex(EmitContext& ctx, IR::Inst* inst, Id cube_coords);
 Id EmitLaneId(EmitContext& ctx);
+Id EmitSubgroupSize(EmitContext& ctx);
 Id EmitWarpId(EmitContext& ctx);
 Id EmitQuadShuffle(EmitContext& ctx, Id value, Id index);
+Id EmitLaneShuffle(EmitContext& ctx, Id value, Id index);
+Id EmitLaneShuffleXor(EmitContext& ctx, Id value, Id index);
 Id EmitReadFirstLane(EmitContext& ctx, Id value);
 Id EmitReadLane(EmitContext& ctx, Id value, Id lane);
 Id EmitWriteLane(EmitContext& ctx, Id value, Id write_value, u32 lane);

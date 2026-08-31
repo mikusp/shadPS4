@@ -18,8 +18,20 @@ Id EmitLaneId(EmitContext& ctx) {
     return ctx.OpLoad(ctx.U32[1], ctx.subgroup_local_invocation_id);
 }
 
+Id EmitSubgroupSize(EmitContext& ctx) {
+    return ctx.OpLoad(ctx.U32[1], ctx.subgroup_size);
+}
+
 Id EmitQuadShuffle(EmitContext& ctx, Id value, Id index) {
     return ctx.OpGroupNonUniformQuadBroadcast(ctx.U32[1], SubgroupScope(ctx), value, index);
+}
+
+Id EmitLaneShuffle(EmitContext& ctx, Id value, Id index) {
+    return ctx.OpGroupNonUniformShuffle(ctx.U32[1], SubgroupScope(ctx), value, index);
+}
+
+Id EmitLaneShuffleXor(EmitContext& ctx, Id value, Id index) {
+    return ctx.OpGroupNonUniformShuffleXor(ctx.U32[1], SubgroupScope(ctx), value, index);
 }
 
 Id EmitReadFirstLane(EmitContext& ctx, Id value) {

@@ -531,9 +531,9 @@ void GcnDecodeContext::decodeDataParallelPrimitive(InstEncoding encoding, GcnCod
         }
 
         auto op = dpp.GetOperation();
-        LOG_ERROR(
+        LOG_DEBUG(
             Render_Recompiler,
-            "unhandled DPP operation: {} ({:#x}), value {}, bc {}, row_mask {:#b}, bank_mask {:#b}",
+            "DPP operation: {} ({:#x}), value {}, bc {}, row_mask {:#b}, bank_mask {:#b}",
             magic_enum::enum_name(op.op), u32(op.op), op.value, bool(dpp.bc), u8(dpp.row_mask),
             u8(dpp.bank_mask));
 

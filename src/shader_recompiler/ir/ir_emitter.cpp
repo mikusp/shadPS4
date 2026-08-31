@@ -655,12 +655,24 @@ U32 IREmitter::LaneId() {
     return Inst<U32>(Opcode::LaneId);
 }
 
+U32 IREmitter::SubgroupSize() {
+    return Inst<U32>(Opcode::SubgroupSize);
+}
+
 U32 IREmitter::WarpId() {
     return Inst<U32>(Opcode::WarpId);
 }
 
 U32 IREmitter::QuadShuffle(const U32& value, const U32& index) {
     return Inst<U32>(Opcode::QuadShuffle, value, index);
+}
+
+U32 IREmitter::LaneShuffle(const U32& value, const U32& index) {
+    return Inst<U32>(Opcode::LaneShuffle, value, index);
+}
+
+U32 IREmitter::LaneShuffleXor(const U32& value, const U32& index) {
+    return Inst<U32>(Opcode::LaneShuffleXor, value, index);
 }
 
 U32 IREmitter::ReadFirstLane(const U32& value) {

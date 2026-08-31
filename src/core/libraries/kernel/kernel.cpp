@@ -221,7 +221,7 @@ s32 PS4_SYSV_ABI posix_getpagesize() {
 
 // stubbed on non-devkit consoles
 s32 PS4_SYSV_ABI sceKernelGetGPI() {
-    LOG_DEBUG(Kernel, "called");
+    LOG_TRACE(Kernel, "called");
     return ORBIS_OK;
 }
 

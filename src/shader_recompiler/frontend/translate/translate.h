@@ -380,6 +380,8 @@ private:
 
     IR::VectorReg GetScratchVgpr(u32 offset);
 
+    std::pair<IR::U32, std::optional<IR::U1>> ApplyDpp(const DppOperation& dpp, const IR::U32& value);
+
 private:
     IR::IREmitter ir;
     Info& info;
@@ -389,6 +391,7 @@ private:
     std::unordered_map<u32, IR::VectorReg> vgpr_map;
     std::array<IR::Attribute, MaxInterpVgpr> vgpr_to_interp{};
     bool opcode_missing = false;
+    std::optional<IR::U1> dpp_write_en;
     u32 pc{};
 };
 

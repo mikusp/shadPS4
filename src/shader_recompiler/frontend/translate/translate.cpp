@@ -269,6 +269,98 @@ IR::VectorReg Translator::GetScratchVgpr(u32 offset) {
     return it->second;
 }
 
+static std::optional<u32> DppXorMask(const DppOperation& dpp) {
+    switch (dpp.op) {
+        case DppCtrl::DppRowMirror:
+            return 15U;
+        case DppCtrl::DppRowHalfMirror:
+            return 7U;
+        case DppCtrl::DppQuadPerm:
+            switch (dpp.value) {
+                case 0xE4:
+                    return 0U;
+                case 0xB1:
+                    return 1U;
+                case 0x4E:
+                    return 2U;
+                case 0x1B:
+                    return 3U;
+                default:
+                    return std::nullopt;
+            }
+        default:
+            return std::nullopt;
+    }
+}
+
+std::pair<IR::U32, std::optional<IR::U1>> Translator::ApplyDpp(const DppOperation& dpp, const IR::U32& value) {
+    // if (dpp.op == DppCtrl::DppInvalid) {
+    //     LOG_ERROR(Render_Recompiler, "invalid DPP_CTRL");
+    //     return value;
+    // }
+
+    if (const auto mask = DppXorMask(dpp)) {
+        // fast path for mirrors and _some_ quad perms that can be encoded in terms of ShuffleXor
+        return {*mask == 0 ? value : ir.LaneShuffleXor(value, ir.Imm32(*mask)), std::nullopt};
+    }
+
+    const auto lane = ir.LaneId();
+    const auto width = ir.SubgroupSize();
+    const auto idx = ir.BitwiseAnd(lane, ir.Imm32(15U));
+    const auto row = ir.BitwiseAnd(lane, ir.Imm32(~15U));
+    const auto n = ir.Imm32(u32(dpp.value));
+
+    IR::U32 src_lane;
+    std::optional<IR::U1> in_bounds; // nullopt => valid everywhere, nothing to handle
+
+    switch (dpp.op) {
+        case DppCtrl::DppQuadPerm: {
+            const IR::U32 shift = ir.ShiftLeftLogical(ir.BitwiseAnd(lane, ir.Imm32(0b11)), ir.Imm32(1U)); // n%4*2
+            const IR::U32 sel = ir.BitwiseAnd(ir.ShiftRightLogical(ir.Imm32(u32(dpp.value)), shift), ir.Imm32(0b11));
+            src_lane = ir.IAdd(ir.BitwiseAnd(lane, ir.Imm32(~3U)), sel);
+            break;
+        }
+        case DppCtrl::DppRowShl: {
+            src_lane = ir.IAdd(lane, n);
+            in_bounds = ir.ILessThan(idx, ir.Imm32(16U - u32(dpp.value)), false);
+            break;
+        }
+        case DppCtrl::DppRowShr: {
+            src_lane = ir.ISub(lane, n);
+            in_bounds = ir.IGreaterThanEqual(idx, n, false);
+            break;
+        }
+        case DppCtrl::DppRowRor: {
+            src_lane = ir.BitwiseOr(row, ir.BitwiseAnd(ir.ISub(idx, n), ir.Imm32(15U)));
+            break;
+        }
+        default:
+            UNREACHABLE_MSG("unhandled DPP: {}", magic_enum::enum_name(dpp.op));
+    }
+
+    src_lane = ir.BitwiseAnd(src_lane, ir.ISub(width, ir.Imm32(1U)));
+    const IR::U32 shuffled = ir.LaneShuffle(value, src_lane);
+    IR::U32 result = shuffled;
+    std::optional<IR::U1> write_en;
+    if (in_bounds) {
+        if (dpp.bc) {
+            result = IR::U32{ir.Select(*in_bounds, shuffled, ir.Imm32(0U))};
+        }
+        else {
+            write_en = *in_bounds;
+        }
+    }
+
+    if (dpp.row_mask != 0xF) {
+        UNIMPLEMENTED();
+    }
+    if (dpp.bank_mask != 0xF) {
+        UNIMPLEMENTED();
+    }
+
+    return {result, write_en};
+}
+
 IR::U1 Translator::GetSrc1(const InstOperand& operand) {
     switch (operand.field) {
     case OperandField::VccLo:
@@ -387,6 +479,12 @@ T Translator::GetSrc(const InstOperand& operand) {
         UNREACHABLE_MSG("unexpected operand: {}", std::to_underlying(operand.field));
     }
 
+    if (operand.dpp) {
+        const auto [shuffled, write_en] = ApplyDpp(*operand.dpp, is_float ? ir.BitCast<IR::U32>(value) : IR::U32{value});
+        value = is_float ? T{ir.BitCast<IR::F32>(shuffled)} : T{shuffled};
+        dpp_write_en = write_en;
+    }
+
     if constexpr (is_float) {
         if (operand.input_modifier.abs) {
             value = ir.FPAbs(value);
@@ -456,9 +554,14 @@ T Translator::GetSrc16(const InstOperand& operand) {
         break;
     }
     case OperandField::VectorGPR: {
-        const auto v = ir.GetVectorReg<T>(IR::VectorReg(operand.code));
+        auto v = bitcast_to_u(ir.GetVectorReg<T>(IR::VectorReg(operand.code)));
+        if (operand.dpp) {
+            const auto [shuffled, write_en] = ApplyDpp(*operand.dpp, v);
+            v = shuffled;
+            dpp_write_en = write_en;
+        }
         value = cast(IR::F32{
-            ir.CompositeExtract(ir.Unpack2x16(number_format, bitcast_to_u(v)), op_sel ? 1 : 0)});
+            ir.CompositeExtract(ir.Unpack2x16(number_format, v), op_sel ? 1 : 0)});
         break;
     }
     case OperandField::ConstZero:
@@ -937,6 +1040,19 @@ void Translator::SetDst(const InstOperand& operand, const IR::U32F32& value) {
         }
     }
 
+    if (dpp_write_en) {
+        const auto enable = *dpp_write_en;
+        dpp_write_en.reset();
+
+        if (operand.field == OperandField::VectorGPR) {
+            const IR::VectorReg reg{operand.code};
+            const auto old = result.Type() == IR::Type::F32
+                ? IR::U32F32{ir.GetVectorReg<IR::F32>(reg)}
+                : IR::U32F32{ir.GetVectorReg<IR::U32>(reg)};
+            result = IR::U32F32{ir.Select(enable, result, old)};
+        }
+    }
+
     switch (operand.field) {
     case OperandField::ScalarGPR:
         return ir.SetScalarReg(IR::ScalarReg(operand.code), result);
@@ -1177,6 +1293,8 @@ void Translator::Translate(IR::Block* block, u32 start_pc, std::span<const GcnIn
 }
 
 void Translator::TranslateInstruction(const GcnInst& inst) {
+    dpp_write_en.reset();
+
     // Emit instructions for each category.
     switch (inst.category) {
     case InstCategory::DataShare:
