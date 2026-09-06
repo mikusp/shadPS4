@@ -118,13 +118,36 @@ void Scheduler::Wait(u64 tick) {
     master_semaphore.Wait(tick);
 }
 
-void Scheduler::PopPendingOperations() {
-    std::unique_lock lk(pending_ops_mutex);
-    master_semaphore.Refresh();
+void Scheduler::DrainRetiredOps() {
     while (!pending_ops.empty() && master_semaphore.IsFree(pending_ops.front().gpu_tick)) {
         pending_ops.front().callback();
         pending_ops.pop();
+        num_pending_ops.fetch_sub(1, std::memory_order_relaxed);
     }
+}
+
+void Scheduler::PopPendingOperations() {
+    if (num_pending_ops.load(std::memory_order_relaxed) == 0) {
+        return;
+    }
+
+    std::unique_lock lk(pending_ops_mutex);
+    DrainRetiredOps();
+    if (pending_ops.empty()) {
+        return;
+    }
+
+    if (pending_ops.front().gpu_tick >= master_semaphore.CurrentTick()) {
+        return;
+    }
+
+    if (++pop_query_counter < TimelineQueryInterval) {
+        return;
+    }
+    pop_query_counter = 0;
+
+    master_semaphore.Refresh();
+    DrainRetiredOps();
 }
 
 void Scheduler::AllocateWorkerCommandBuffers() {

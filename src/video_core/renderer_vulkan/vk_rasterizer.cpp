@@ -189,11 +189,11 @@ void Rasterizer::EliminateFastClear() {
 void Rasterizer::Draw(bool is_indexed, u32 index_offset) {
     RENDERER_TRACE;
 
-    scheduler.PopPendingOperations();
-
     if (!FilterDraw()) {
         return;
     }
+
+    scheduler.PopPendingOperations();
 
     const auto& regs = liverpool->regs;
     const GraphicsPipeline* pipeline = pipeline_cache.GetGraphicsPipeline();
@@ -239,11 +239,11 @@ void Rasterizer::DrawIndirect(bool is_indexed, VAddr arg_address, u32 offset, u3
                               u32 max_count, VAddr count_address) {
     RENDERER_TRACE;
 
-    scheduler.PopPendingOperations();
-
     if (!FilterDraw()) {
         return;
     }
+
+    scheduler.PopPendingOperations();
 
     const GraphicsPipeline* pipeline = pipeline_cache.GetGraphicsPipeline();
     if (!pipeline) {

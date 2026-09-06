@@ -366,6 +366,7 @@ public:
 
     /// Attempts to execute operations whose tick the GPU has caught up with.
     void PopPendingOperations();
+    void DrainRetiredOps();
 
     /// Starts a new rendering scope with provided state.
     void BeginRendering(const RenderState& new_state);
@@ -412,6 +413,7 @@ public:
     void DeferOperation(Common::UniqueFunction<void>&& func) {
         std::unique_lock lk(pending_ops_mutex);
         pending_ops.emplace(std::move(func), CurrentTick());
+        num_pending_ops.fetch_add(1, std::memory_order_relaxed);
     }
 
     /// Defers an operation until the gpu has reached the current cpu tick.
@@ -444,7 +446,10 @@ private:
         Common::UniqueFunction<void> callback;
         u64 gpu_tick;
     };
+    static constexpr u32 TimelineQueryInterval = 64;
+    u32 pop_query_counter{};
     std::queue<PendingOp> pending_ops;
+    std::atomic<size_t> num_pending_ops{};
     std::recursive_mutex pending_ops_mutex;
     std::queue<PendingOp> priority_pending_ops;
     std::mutex priority_pending_ops_mutex;
