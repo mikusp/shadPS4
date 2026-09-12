@@ -21,6 +21,7 @@
 #include <linux/userfaultfd.h>
 #include <poll.h>
 #include <sys/ioctl.h>
+#include <sys/syscall.h>
 #include "common/error.h"
 #endif
 #else
@@ -91,7 +92,7 @@ struct PageManager::Impl {
 #ifdef ENABLE_USERFAULTFD
     Impl(Vulkan::Rasterizer* rasterizer_) {
         rasterizer = rasterizer_;
-        uffd = syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK | UFFD_USER_MODE_ONLY);
+        uffd = syscall(SYS_userfaultfd, O_CLOEXEC | O_NONBLOCK | UFFD_USER_MODE_ONLY);
         ASSERT_MSG(uffd != -1, "{}", Common::GetLastErrorMsg());
 
         // Request uffdio features from kernel.
@@ -112,6 +113,7 @@ struct PageManager::Impl {
         reg.mode = UFFDIO_REGISTER_MODE_WP;
         const int ret = ioctl(uffd, UFFDIO_REGISTER, &reg);
         ASSERT_MSG(ret != -1, "Uffdio register failed");
+        LOG_DEBUG(Common_Memory, "Uffd registered {:#x}-{:#x}", address, address+size);
     }
 
     void OnUnmap(VAddr address, size_t size) {
@@ -120,6 +122,7 @@ struct PageManager::Impl {
         range.len = size;
         const int ret = ioctl(uffd, UFFDIO_UNREGISTER, &range);
         ASSERT_MSG(ret != -1, "Uffdio unregister failed");
+        LOG_DEBUG(Common_Memory, "Uffd unregistered {:#x}-{:#x}", address, address+size);
     }
 
     void Protect(VAddr address, size_t size, Core::MemoryPermission perms) {
@@ -127,13 +130,15 @@ struct PageManager::Impl {
         uffdio_writeprotect wp;
         wp.range.start = address;
         wp.range.len = size;
-        wp.mode = allow_write ? 0 : UFFDIO_WRITEPROTECT_MODE_WP;
+        wp.mode = allow_write ? UFFDIO_WRITEPROTECT_MODE_DONTWAKE : UFFDIO_WRITEPROTECT_MODE_WP;
         const int ret = ioctl(uffd, UFFDIO_WRITEPROTECT, &wp);
         ASSERT_MSG(ret != -1, "Uffdio writeprotect failed with error: {}",
                    Common::GetLastErrorMsg());
     }
 
     void UffdHandler(std::stop_token token) {
+        Common::SetCurrentThreadName("shadPS4:UffdHandler");
+
         while (!token.stop_requested()) {
             pollfd pollfd;
             pollfd.fd = uffd;
@@ -165,16 +170,27 @@ struct PageManager::Impl {
             // Read message from kernel.
             uffd_msg msg;
             const int readret = read(uffd, &msg, sizeof(msg));
-            ASSERT_MSG(readret != -1 || errno == EAGAIN, "Unexpected result of uffd read");
-            if (errno == EAGAIN) {
-                continue;
+            if (readret == -1) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    continue;
+                }
+                LOG_ERROR(Common_Memory, "Unexpected result of uffd read: {}", Common::GetLastErrorMsg());
+                break;
             }
             ASSERT_MSG(readret == sizeof(msg), "Unexpected short read, exiting");
             ASSERT(msg.arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WP);
 
             // Notify rasterizer about the fault.
             const VAddr addr = msg.arg.pagefault.address;
+            LOG_DEBUG(Common_Memory, "Invalidating memory at {:#x} (tid: {})", addr, msg.arg.pagefault.feat.ptid);
             rasterizer->InvalidateMemory(addr, 1);
+
+            uffdio_range wake;
+            wake.start = msg.arg.pagefault.address;
+            wake.len = PM_PAGE_SIZE;
+            const int ret = ioctl(uffd, UFFDIO_WAKE, &wake);
+            ASSERT_MSG(ret != -1, "Waking thread {} failed with: {}",
+                    msg.arg.pagefault.feat.ptid, Common::GetLastErrorMsg());
         }
     }
 

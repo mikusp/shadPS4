@@ -37,6 +37,7 @@ include(CMakeDependentOption)
 cmake_dependent_option(ENABLE_SYSTEM_VULKAN "Enable the system Vulkan driver" OFF APPLE OFF)
 
 option(ENABLE_DISCORD_RPC "Enable the Discord RPC integration" ON)
+option(ENABLE_USERFAULTFD "Enable userfaultfd" ON)
 option(ENABLE_UPDATER "Enables the options to updater" ON)
 option(ENABLE_TESTS "Build unit tests (requires GTest)" OFF)
 option(ENABLE_SYSTEM_LIBRARIES "Enable building against system libraries" OFF)
