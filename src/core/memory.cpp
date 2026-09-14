@@ -15,6 +15,18 @@
 
 namespace Core {
 
+void MemoryManager::SetRasterizer(Vulkan::Rasterizer* rasterizer_) {
+    rasterizer = rasterizer_;
+    if (rasterizer) {
+        auto regions = impl.GetUsableRegions();
+        u64 total_usable_space = 0;
+        for (auto region : regions) {
+            rasterizer->RegisterMemory(region.lower(), region.upper() - region.lower());   
+            // LOG_INFO(Kernel_Vmm, "{:#x} - {:#x}", region.lower(), region.upper
+        }
+    }
+}
+
 MemoryManager::MemoryManager() {
     LOG_INFO(Kernel_Vmm, "Virtual memory space initialized with regions:");
 
@@ -449,6 +461,10 @@ s32 MemoryManager::PoolCommit(VAddr virtual_addr, u64 size, MemoryProt prot, s32
 
         // Perform an address space mapping for each physical area
         void* out_addr = impl.Map(current_addr, size_to_map, new_dmem_area.base);
+
+        // if (rasterizer) {
+        //     rasterizer->RegisterMemory(current_addr, size_to_map);
+        // }
         // Tracy memory tracking breaks from merging memory areas. Disabled for now.
         // TRACK_ALLOC(out_addr, size_to_map, "VMEM");
 
@@ -690,6 +706,10 @@ s32 MemoryManager::MapMemory(void** out_addr, VAddr virtual_addr, u64 size, Memo
         }
     }
 
+    // if (rasterizer) {
+    //     rasterizer->RegisterMemory(mapped_addr, size);
+    // }
+
     return ORBIS_OK;
 }
 
@@ -892,6 +912,9 @@ s32 MemoryManager::PoolDecommit(VAddr virtual_addr, u64 size) {
 
     // Unmap from address space
     impl.Unmap(virtual_addr, size);
+    // if (rasterizer) {
+    //     rasterizer->RegisterMemory(virtual_addr, size);
+    // }
     // Tracy memory tracking breaks from merging memory areas. Disabled for now.
     // TRACK_FREE(virtual_addr, "VMEM");
 
@@ -989,6 +1012,9 @@ u64 MemoryManager::UnmapBytesFromEntry(VAddr virtual_addr, VirtualMemoryArea vma
         // Tracy memory tracking breaks from merging memory areas. Disabled for now.
         // TRACK_FREE(virtual_addr, "VMEM");
     }
+    // if (rasterizer) {
+    //     rasterizer->RegisterMemory(virtual_addr, size);
+    // }
     return size_in_vma;
 }
 

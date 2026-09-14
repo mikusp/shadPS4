@@ -167,9 +167,7 @@ public:
     explicit MemoryManager();
     ~MemoryManager();
 
-    void SetRasterizer(Vulkan::Rasterizer* rasterizer_) {
-        rasterizer = rasterizer_;
-    }
+    void SetRasterizer(Vulkan::Rasterizer* rasterizer_);
 
     AddressSpace& GetAddressSpace() {
         return impl;

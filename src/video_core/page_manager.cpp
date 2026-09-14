@@ -98,7 +98,7 @@ struct PageManager::Impl {
         // Request uffdio features from kernel.
         uffdio_api api;
         api.api = UFFD_API;
-        api.features = UFFD_FEATURE_THREAD_ID;
+        api.features = UFFD_FEATURE_THREAD_ID | UFFD_FEATURE_WP_UNPOPULATED;
         const int ret = ioctl(uffd, UFFDIO_API, &api);
         ASSERT(ret == 0 && api.api == UFFD_API);
 
@@ -112,28 +112,36 @@ struct PageManager::Impl {
         reg.range.len = size;
         reg.mode = UFFDIO_REGISTER_MODE_WP;
         const int ret = ioctl(uffd, UFFDIO_REGISTER, &reg);
-        ASSERT_MSG(ret != -1, "Uffdio register failed");
+        ASSERT_MSG(ret != -1, "Uffdio register failed: {}", Common::GetLastErrorMsg());
         LOG_DEBUG(Common_Memory, "Uffd registered {:#x}-{:#x}", address, address+size);
     }
 
     void OnUnmap(VAddr address, size_t size) {
-        uffdio_range range;
-        range.start = address;
-        range.len = size;
-        const int ret = ioctl(uffd, UFFDIO_UNREGISTER, &range);
-        ASSERT_MSG(ret != -1, "Uffdio unregister failed");
-        LOG_DEBUG(Common_Memory, "Uffd unregistered {:#x}-{:#x}", address, address+size);
+        // uffdio_range range;
+        // range.start = address;
+        // range.len = size;
+        // const int ret = ioctl(uffd, UFFDIO_UNREGISTER, &range);
+        // ASSERT_MSG(ret != -1, "Uffdio unregister failed");
+        // LOG_DEBUG(Common_Memory, "Uffd unregistered {:#x}-{:#x}", address, address+size);
     }
 
     void Protect(VAddr address, size_t size, Core::MemoryPermission perms) {
+        uffdio_register reg;
+        reg.range.start = address;
+        reg.range.len = size;
+        reg.mode = UFFDIO_REGISTER_MODE_WP;
+        auto ret = ioctl(uffd, UFFDIO_REGISTER, &reg);
+        ASSERT_MSG(ret != -1, "Uffdio register failed: {}", Common::GetLastErrorMsg());
+        LOG_DEBUG(Common_Memory, "Uffd registered {:#x}-{:#x}", address, address+size);
+
         bool allow_write = True(perms & Core::MemoryPermission::Write);
         uffdio_writeprotect wp;
         wp.range.start = address;
         wp.range.len = size;
         wp.mode = allow_write ? UFFDIO_WRITEPROTECT_MODE_DONTWAKE : UFFDIO_WRITEPROTECT_MODE_WP;
-        const int ret = ioctl(uffd, UFFDIO_WRITEPROTECT, &wp);
-        ASSERT_MSG(ret != -1, "Uffdio writeprotect failed with error: {}",
-                   Common::GetLastErrorMsg());
+        ret = ioctl(uffd, UFFDIO_WRITEPROTECT, &wp);
+        ASSERT_MSG(ret != -1, "Uffdio writeprotect {:#x}-{:#x} failed with error: {}",
+                   address, size, Common::GetLastErrorMsg());
     }
 
     void UffdHandler(std::stop_token token) {
@@ -266,8 +274,9 @@ struct PageManager::Impl {
         const u64 aligned_end = page_end << PM_PAGE_BITS;
         if (!rasterizer->IsMapped(aligned_addr, aligned_end - aligned_addr)) {
             LOG_WARNING(Render,
-                        "Tracking memory region {:#x} - {:#x} which is not fully GPU mapped.",
+                        "Tracking memory region {:#x} - {:#x} which is not fully GPU mapped. Forcing register",
                         aligned_addr, aligned_end);
+            OnMap(aligned_addr, aligned_end - aligned_addr);
         }
 
         for (; page != page_end; ++page) {

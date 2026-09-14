@@ -1122,6 +1122,10 @@ void Rasterizer::MapMemory(VAddr addr, u64 size) {
         std::scoped_lock lock{mapped_ranges_mutex};
         mapped_ranges += decltype(mapped_ranges)::interval_type::right_open(addr, addr + size);
     }
+    // page_manager.OnGpuMap(addr, size);
+}
+
+void Rasterizer::RegisterMemory(VAddr addr, u64 size) {
     page_manager.OnGpuMap(addr, size);
 }
 
